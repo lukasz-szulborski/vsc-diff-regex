@@ -62,6 +62,7 @@ export class ActivityBarView implements vscode.Disposable {
   }
 
   private _setWebviewMessageListener(): void {
+    // Webview messages.
     this._view.webview.onDidReceiveMessage(
       (msg: any) => {
         switch (msg.command) {
@@ -80,6 +81,18 @@ export class ActivityBarView implements vscode.Disposable {
       undefined,
       this._disposables
     );
+
+    // Document save.
+    vscode.workspace.onDidSaveTextDocument((e) => {
+      
+      // @TODO: Extract as a subroutine.
+
+      // run git diff
+
+      // filter with saved text (if no text do not react)
+
+      // run render (pain tree)
+    })
   }
 
   private _handleSearchInputChange(value: string): void {

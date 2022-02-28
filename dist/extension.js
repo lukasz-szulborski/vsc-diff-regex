@@ -214,6 +214,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
+const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
 const Helpers_1 = __webpack_require__(8);
 const types_1 = __webpack_require__(10);
@@ -258,6 +259,7 @@ class ActivityBarView {
         };
     }
     _setWebviewMessageListener() {
+        // Webview messages.
         this._view.webview.onDidReceiveMessage((msg) => {
             switch (msg.command) {
                 case "searchInputChange":
@@ -271,6 +273,13 @@ class ActivityBarView {
                     break;
             }
         }, undefined, this._disposables);
+        // Document save.
+        vscode.workspace.onDidSaveTextDocument((e) => {
+            // @TODO: Extract as a subroutine.
+            // run git diff
+            // filter with saved text (if no text do not react)
+            // run render (pain tree)
+        });
     }
     _handleSearchInputChange(value) {
         const { workspaceState } = this._extensionContext;
