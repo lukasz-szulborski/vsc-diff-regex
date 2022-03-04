@@ -15,6 +15,8 @@ module.exports = require("vscode");
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const vscode = __webpack_require__(1);
 const parseDiff = __webpack_require__(3);
+const path = __webpack_require__(17);
+const utils_1 = __webpack_require__(4);
 class GitApi {
     constructor() {
         try {
@@ -30,6 +32,9 @@ class GitApi {
     /************
      *  Public  *
      ************/
+    static get Instance() {
+        return this._instance || (this._instance = new this());
+    }
     async activateGit() {
         try {
             if (!this._vscExtension.isActive)
@@ -94,9 +99,10 @@ class GitApi {
                 results.push(parsedChangedFile);
             });
         }
-        // Also include untracked files (includes by default)
+        // Also include untracked files (included by default)
         if (includeUntracked) {
-            //...
+            const untrackedChanges = await this.parseUntrackedFilesInWorkspace();
+            results.push(...untrackedChanges);
         }
         return results;
     }
@@ -104,7 +110,9 @@ class GitApi {
      *  Private  *
      *************/
     getWorkspaceMainRepository() {
-        const mainRepo = this._vscGitApi.getRepository(vscode.workspace.workspaceFolders[0].uri);
+        const mainRepo = this._vscGitApi.getRepository(
+        // @TODO: [roadmap] consider multiple workspaces
+        vscode.workspace.workspaceFolders[0].uri);
         return mainRepo;
     }
     async diffToObject() {
@@ -115,10 +123,65 @@ class GitApi {
         }
         return undefined;
     }
-    // @TODO:
     // For untracked files.
-    // `git ls-files -o --exclude-standard`
-    // ...
+    async parseUntrackedFilesInWorkspace() {
+        try {
+            const result = [];
+            // @TODO: [roadmap] consider multiple workspaces
+            let workspacePath = vscode.workspace.workspaceFolders[0].uri.path;
+            workspacePath = workspacePath.replace(/^\//g, "");
+            // Exec command.
+            const commandResult = await (0, utils_1.asyncExec)(`git -C ${workspacePath} ls-files -o --exclude-standard`);
+            // Get untracked files paths from command result string.
+            const filePaths = commandResult
+                .trim()
+                .split("\n")
+                .map((filename) => path.join(workspacePath, filename).replace(/\\/g, "/"));
+            // Prepare for getting file contents.
+            const contentGetters = [];
+            filePaths.forEach((path) => {
+                const relativeFilePath = path
+                    .replace(workspacePath, "")
+                    .replace(/^\//g, "");
+                // Prepare Promises that will retrieve  file contents.
+                contentGetters.push(new Promise(async (resolve, reject) => {
+                    try {
+                        const textDocument = await vscode.workspace.openTextDocument(path);
+                        const fileContent = textDocument.getText();
+                        const fileLines = fileContent.split("\n");
+                        resolve({
+                            relativeFilePath,
+                            fileLines,
+                        });
+                    }
+                    catch (error) {
+                        // Terminate silently upon encountering non-text (binaries) files.
+                        resolve(undefined);
+                    }
+                }));
+            });
+            // Get files contents.
+            const filesAndContent = await Promise.all(contentGetters);
+            // Format to expected out format.
+            filesAndContent.forEach((fileContents) => {
+                if (fileContents) {
+                    const { fileLines, relativeFilePath } = fileContents;
+                    result.push({
+                        filePath: relativeFilePath,
+                        changes: fileLines.map((line, i) => ({
+                            content: line,
+                            line: i,
+                            type: "add",
+                        })),
+                    });
+                }
+            });
+            return result;
+        }
+        catch (error) {
+            throw error;
+        }
+    }
     isParseDiffChangeNormal(change) {
         return change.type === "normal";
     }
@@ -175,7 +238,6 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(6), exports);
-__exportStar(__webpack_require__(7), exports);
 
 
 /***/ }),
@@ -184,8 +246,73 @@ __exportStar(__webpack_require__(7), exports);
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.asyncExec = void 0;
+const cp = __webpack_require__(7);
+const asyncExec = (command) => {
+    return new Promise((resolve, reject) => {
+        cp.exec(command, (error, stdout, x) => {
+            if (error)
+                reject(error);
+            resolve(stdout);
+        });
+    });
+};
+exports.asyncExec = asyncExec;
+
+
+/***/ }),
+/* 7 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
+
+/***/ }),
+/* 8 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(9), exports);
+
+
+/***/ }),
+/* 9 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(10), exports);
+__exportStar(__webpack_require__(11), exports);
+
+
+/***/ }),
+/* 10 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(5);
+const _1 = __webpack_require__(9);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -208,7 +335,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 7 */
+/* 11 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -216,8 +343,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(8);
-const types_1 = __webpack_require__(10);
+const Helpers_1 = __webpack_require__(12);
+const types_1 = __webpack_require__(14);
 var RENDER_STATE;
 (function (RENDER_STATE) {
     RENDER_STATE[RENDER_STATE["VIEW_LOADING"] = 0] = "VIEW_LOADING";
@@ -230,13 +357,17 @@ class ActivityBarView {
     constructor(extensionContext, webviewView) {
         this._renderState = RENDER_STATE.VIEW_LOADING;
         this._disposables = [];
-        this._gitApi = new gitExtensionApi_1.default();
+        this._gitApi = gitExtensionApi_1.default.Instance;
         this._extensionContext = extensionContext;
         this._view = webviewView;
         this._view.webview.options = this._getWebviewOptions(); // Configure Webview.
         this._WebviewUriProvider = new Helpers_1.WebviewUriProvider(this._view.webview, this._extensionContext.extensionUri);
         // Listen for messages within the View.
         this._setWebviewMessageListener();
+        // Listen for text document save.
+        vscode.workspace.onDidSaveTextDocument(async (e) => {
+            await this._applyChanges();
+        });
         // Clean disposables.
         this._view.onDidDispose(this.dispose, undefined, this._disposables);
         // Dependent modules configured, ready to render.
@@ -273,36 +404,72 @@ class ActivityBarView {
                     break;
             }
         }, undefined, this._disposables);
-        // Document save.
-        vscode.workspace.onDidSaveTextDocument((e) => {
-            // @TODO: Extract as a subroutine.
-            // run git diff
-            // filter with saved text (if no text do not react)
-            // run render (pain tree)
-        });
     }
-    _handleSearchInputChange(value) {
+    get _getSearchInputFromState() {
         const { workspaceState } = this._extensionContext;
         const currentValue = workspaceState.get(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT);
+        if (!currentValue)
+            return undefined;
+        return currentValue;
+    }
+    async _handleSearchInputChange(value) {
+        const { workspaceState } = this._extensionContext;
+        const currentValue = this._getSearchInputFromState;
         // Avoid unnecessary renders and updates
         if (value !== currentValue) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
-            // Filter `git diff` space
-            // ...
+            // @NOTE: if UI lags, do not await
+            await this._applyChanges();
         }
     }
     /**
      * Loads data from extenstion storage to the view.
      */
     _loadDataFromLocalStorage() {
-        const { workspaceState } = this._extensionContext;
         // Load search input content.
-        const searchInputValue = workspaceState.get(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT);
+        const searchInputValue = this._getSearchInputFromState;
         if (searchInputValue && searchInputValue.length !== 0) {
             this._view.webview.postMessage({
                 command: "setSearchInputValue",
                 value: searchInputValue,
             });
+        }
+    }
+    /**
+     * Subroutine that is run on changes. Analyzes `git diff`, filters by current
+     * regex search and repaints changes tree.
+     */
+    async _applyChanges() {
+        const searchInputValue = this._getSearchInputFromState;
+        if (searchInputValue) {
+            // Run and parse `git diff`.
+            const diff = await this._gitApi.parseDiff();
+            // Filter with saved regex term.
+            const filteredChanges = [];
+            const regex = new RegExp(searchInputValue, "g"); // Parse search term as RegEx.
+            diff.forEach((changedFile) => {
+                changedFile.changes.forEach((fileChange) => {
+                    let newIndex = undefined;
+                    // @NOTE: For now consider only 'add' changes. Maybe later add ability to change this in extension settings.
+                    if (fileChange.type === "add" &&
+                        fileChange.content.match(regex) !== null) {
+                        // First change in a file matched.
+                        if (newIndex === undefined) {
+                            newIndex =
+                                filteredChanges.push({
+                                    filePath: changedFile.filePath,
+                                    changes: [fileChange],
+                                }) - 1;
+                        }
+                        else {
+                            // Rest of the changes matched in a file.
+                            filteredChanges[newIndex].changes.push(fileChange);
+                        }
+                    }
+                });
+            });
+            // @TOOD: Send data to view (will rerender upon this message).
+            // ...
         }
     }
     /**
@@ -371,7 +538,7 @@ exports.ActivityBarView = ActivityBarView;
 
 
 /***/ }),
-/* 8 */
+/* 12 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -386,11 +553,11 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(9), exports);
+__exportStar(__webpack_require__(13), exports);
 
 
 /***/ }),
-/* 9 */
+/* 13 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -428,7 +595,7 @@ exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
-/* 10 */
+/* 14 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -443,12 +610,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(11), exports);
-__exportStar(__webpack_require__(12), exports);
+__exportStar(__webpack_require__(15), exports);
+__exportStar(__webpack_require__(16), exports);
 
 
 /***/ }),
-/* 11 */
+/* 15 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -461,12 +628,18 @@ var WorkspaceStateKeys;
 
 
 /***/ }),
-/* 12 */
+/* 16 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
+
+/***/ }),
+/* 17 */
+/***/ ((module) => {
+
+module.exports = require("path");
 
 /***/ })
 /******/ 	]);
@@ -505,7 +678,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Views_1 = __webpack_require__(4);
+const Views_1 = __webpack_require__(8);
 /**
  ******* NOTES *******
  *
@@ -516,7 +689,7 @@ const Views_1 = __webpack_require__(4);
  * 4. Get changed files from `git diff` (https://github.com/sergeyt/parse-diff) X
  * 5. Open file upon click (is there a quick way to show diff like in a SCM view?)
  * 6. Highlight searched regex inside this file
- * 7. Run `git diff` on file changes
+ * 7. Run `git diff` on file changes X
  * 8. Change highlight in opened window while typing in search input.
  * 9. Don't care bout rename alone (but do care about rename & contents change) (`git diff --no-renames` ???)
  * 10. Show TreeView (controlled by main View) and create easy update mechanism
@@ -534,7 +707,7 @@ async function activate(context) {
     /***********************
      *  Extension startup  *
      ***********************/
-    const gitApi = new gitExtensionApi_1.default();
+    const gitApi = gitExtensionApi_1.default.Instance;
     // Make sure git extension is active
     if (await gitApi.activateGit()) {
         // check config (due to parse limitations of "parse-diff": "^0.9.0")

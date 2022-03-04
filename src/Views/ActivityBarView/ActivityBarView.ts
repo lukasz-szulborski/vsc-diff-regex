@@ -1,7 +1,10 @@
 import * as vscode from "vscode";
 import GitApi from "../../gitExtensionApi";
 import { WebviewUriProvider } from "../../Helpers";
-import { WorkspaceStateKeys } from "../../types";
+import {
+  RepositoryFileChange,
+  WorkspaceStateKeys,
+} from "../../types";
 
 enum RENDER_STATE {
   VIEW_LOADING, // Waiting for modules that View depends on.
@@ -17,7 +20,7 @@ export class ActivityBarView implements vscode.Disposable {
   private _renderState: RENDER_STATE = RENDER_STATE.VIEW_LOADING;
   private _disposables: vscode.Disposable[] = [];
   private _extensionContext: vscode.ExtensionContext;
-  private _gitApi: GitApi = new GitApi();
+  private _gitApi: GitApi = GitApi.Instance;
 
   constructor(
     extensionContext: vscode.ExtensionContext,
@@ -35,6 +38,11 @@ export class ActivityBarView implements vscode.Disposable {
 
     // Listen for messages within the View.
     this._setWebviewMessageListener();
+
+    // Listen for text document save.
+    vscode.workspace.onDidSaveTextDocument(async (e) => {
+      await this._applyChanges();
+    });
 
     // Clean disposables.
     this._view.onDidDispose(this.dispose, undefined, this._disposables);
@@ -81,31 +89,26 @@ export class ActivityBarView implements vscode.Disposable {
       undefined,
       this._disposables
     );
-
-    // Document save.
-    vscode.workspace.onDidSaveTextDocument((e) => {
-      
-      // @TODO: Extract as a subroutine.
-
-      // run git diff
-
-      // filter with saved text (if no text do not react)
-
-      // run render (pain tree)
-    })
   }
 
-  private _handleSearchInputChange(value: string): void {
+  private get _getSearchInputFromState(): string | undefined {
     const { workspaceState } = this._extensionContext;
     const currentValue = workspaceState.get(
       WorkspaceStateKeys.ABV_SEARCH_INPUT
-    );
+    ) as string;
+    if (!currentValue) return undefined;
+    return currentValue;
+  }
+
+  private async _handleSearchInputChange(value: string): Promise<void> {
+    const { workspaceState } = this._extensionContext;
+    const currentValue = this._getSearchInputFromState;
     // Avoid unnecessary renders and updates
     if (value !== currentValue) {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
 
-      // Filter `git diff` space
-      // ...
+      // @NOTE: if UI lags, do not await
+      await this._applyChanges();
     }
   }
 
@@ -113,17 +116,54 @@ export class ActivityBarView implements vscode.Disposable {
    * Loads data from extenstion storage to the view.
    */
   private _loadDataFromLocalStorage(): void {
-    const { workspaceState } = this._extensionContext;
-
     // Load search input content.
-    const searchInputValue = workspaceState.get(
-      WorkspaceStateKeys.ABV_SEARCH_INPUT
-    ) as string;
+    const searchInputValue = this._getSearchInputFromState;
     if (searchInputValue && searchInputValue.length !== 0) {
       this._view.webview.postMessage({
         command: "setSearchInputValue",
         value: searchInputValue,
       });
+    }
+  }
+
+  /**
+   * Subroutine that is run on changes. Analyzes `git diff`, filters by current
+   * regex search and repaints changes tree.
+   */
+  private async _applyChanges() {
+    const searchInputValue = this._getSearchInputFromState;
+    if (searchInputValue) {
+      // Run and parse `git diff`.
+      const diff = await this._gitApi.parseDiff();
+
+      // Filter with saved regex term.
+      const filteredChanges: RepositoryFileChange[] = [];
+      const regex = new RegExp(searchInputValue, "g"); // Parse search term as RegEx.
+      diff.forEach((changedFile) => {
+        changedFile.changes.forEach((fileChange) => {
+          let newIndex = undefined;
+          // @NOTE: For now consider only 'add' changes. Maybe later add ability to change this in extension settings.
+          if (
+            fileChange.type === "add" &&
+            fileChange.content.match(regex) !== null
+          ) {
+            // First change in a file matched.
+            if (newIndex === undefined) {
+              newIndex =
+                filteredChanges.push({
+                  filePath: changedFile.filePath,
+                  changes: [fileChange],
+                }) - 1;
+            } else {
+              // Rest of the changes matched in a file.
+              filteredChanges[newIndex].changes.push(fileChange);
+            }
+          }
+        });
+      });
+
+      // @TOOD: Send data to view (will rerender upon this message).
+      // ...
     }
   }
 

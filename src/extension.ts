@@ -13,7 +13,7 @@ import { ActivityBarViewProvider } from "./Views";
  * 4. Get changed files from `git diff` (https://github.com/sergeyt/parse-diff) X
  * 5. Open file upon click (is there a quick way to show diff like in a SCM view?)
  * 6. Highlight searched regex inside this file
- * 7. Run `git diff` on file changes
+ * 7. Run `git diff` on file changes X
  * 8. Change highlight in opened window while typing in search input.
  * 9. Don't care bout rename alone (but do care about rename & contents change) (`git diff --no-renames` ???)
  * 10. Show TreeView (controlled by main View) and create easy update mechanism
@@ -34,7 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
    *  Extension startup  *
    ***********************/
 
-  const gitApi = new GitApi();
+  const gitApi = GitApi.Instance;
 
   // Make sure git extension is active
   if (await gitApi.activateGit()) {
