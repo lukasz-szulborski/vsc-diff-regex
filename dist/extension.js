@@ -15,8 +15,8 @@ module.exports = require("vscode");
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const vscode = __webpack_require__(1);
 const parseDiff = __webpack_require__(3);
-const path = __webpack_require__(17);
-const utils_1 = __webpack_require__(4);
+const path = __webpack_require__(4);
+const utils_1 = __webpack_require__(5);
 class GitApi {
     constructor() {
         try {
@@ -144,7 +144,7 @@ class GitApi {
                     .replace(workspacePath, "")
                     .replace(/^\//g, "");
                 // Prepare Promises that will retrieve  file contents.
-                contentGetters.push(new Promise(async (resolve, reject) => {
+                contentGetters.push(new Promise(async (resolve) => {
                     try {
                         const textDocument = await vscode.workspace.openTextDocument(path);
                         const fileContent = textDocument.getText();
@@ -155,7 +155,7 @@ class GitApi {
                         });
                     }
                     catch (error) {
-                        // Terminate silently upon encountering non-text (binaries) files.
+                        // Terminate silently upon encountering non-text (binary) files.
                         resolve(undefined);
                     }
                 }));
@@ -204,22 +204,9 @@ function _createForOfIteratorHelper(o,allowArrayLike){var it=typeof Symbol!=="un
 
 /***/ }),
 /* 4 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((module) => {
 
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(5), exports);
-
+module.exports = require("path");
 
 /***/ }),
 /* 5 */
@@ -242,32 +229,6 @@ __exportStar(__webpack_require__(6), exports);
 
 /***/ }),
 /* 6 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.asyncExec = void 0;
-const cp = __webpack_require__(7);
-const asyncExec = (command) => {
-    return new Promise((resolve, reject) => {
-        cp.exec(command, (error, stdout, x) => {
-            if (error)
-                reject(error);
-            resolve(stdout);
-        });
-    });
-};
-exports.asyncExec = asyncExec;
-
-
-/***/ }),
-/* 7 */
-/***/ ((module) => {
-
-module.exports = require("child_process");
-
-/***/ }),
-/* 8 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -282,8 +243,34 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(9), exports);
+__exportStar(__webpack_require__(7), exports);
 
+
+/***/ }),
+/* 7 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.asyncExec = void 0;
+const cp = __webpack_require__(8);
+const asyncExec = (command) => {
+    return new Promise((resolve, reject) => {
+        cp.exec(command, (error, stdout, x) => {
+            if (error)
+                reject(error);
+            resolve(stdout);
+        });
+    });
+};
+exports.asyncExec = asyncExec;
+
+
+/***/ }),
+/* 8 */
+/***/ ((module) => {
+
+module.exports = require("child_process");
 
 /***/ }),
 /* 9 */
@@ -302,17 +289,36 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(10), exports);
-__exportStar(__webpack_require__(11), exports);
 
 
 /***/ }),
 /* 10 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(11), exports);
+__exportStar(__webpack_require__(12), exports);
+
+
+/***/ }),
+/* 11 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(9);
+const _1 = __webpack_require__(10);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -335,7 +341,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -343,8 +349,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(12);
-const types_1 = __webpack_require__(14);
+const Helpers_1 = __webpack_require__(13);
+const types_1 = __webpack_require__(15);
 var RENDER_STATE;
 (function (RENDER_STATE) {
     RENDER_STATE[RENDER_STATE["VIEW_LOADING"] = 0] = "VIEW_LOADING";
@@ -390,15 +396,20 @@ class ActivityBarView {
         };
     }
     _setWebviewMessageListener() {
+        let inputChangeWasNoted = false;
         // Webview messages.
         this._view.webview.onDidReceiveMessage((msg) => {
             switch (msg.command) {
                 case "searchInputChange":
                     const { value } = msg;
-                    this._handleSearchInputChange(value);
+                    this._handleSearchInputChange(value, !inputChangeWasNoted);
+                    inputChangeWasNoted = true;
                     break;
                 case "ActivityBarViewDidLoad":
                     this._loadDataFromLocalStorage();
+                    break;
+                case "log":
+                    console.log(msg.value);
                     break;
                 default:
                     break;
@@ -412,11 +423,11 @@ class ActivityBarView {
             return undefined;
         return currentValue;
     }
-    async _handleSearchInputChange(value) {
+    async _handleSearchInputChange(value, force = false) {
         const { workspaceState } = this._extensionContext;
         const currentValue = this._getSearchInputFromState;
         // Avoid unnecessary renders and updates
-        if (value !== currentValue) {
+        if (value !== currentValue || force) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
             // @NOTE: if UI lags, do not await
             await this._applyChanges();
@@ -428,12 +439,10 @@ class ActivityBarView {
     _loadDataFromLocalStorage() {
         // Load search input content.
         const searchInputValue = this._getSearchInputFromState;
-        if (searchInputValue && searchInputValue.length !== 0) {
-            this._view.webview.postMessage({
-                command: "setSearchInputValue",
-                value: searchInputValue,
-            });
-        }
+        this._view.webview.postMessage({
+            command: "setSearchInputValue",
+            value: searchInputValue ?? "",
+        });
     }
     /**
      * Subroutine that is run on changes. Analyzes `git diff`, filters by current
@@ -500,11 +509,14 @@ class ActivityBarView {
                     <meta name="viewport" content="width=device-width,initial-scale=1.0">
                     <script type="module" src="${this._WebviewUriProvider.getUiToolkitWebviewUri()}"></script>
                     <script type="module" src="${this._WebviewUriProvider.getScriptWebviewUri(["ActivityBarScripts.js"])}"></script>
+                    <link rel="stylesheet" href="${this._WebviewUriProvider.getStyleWebviewUri(["activity-bar-scripts.css"])}">
                 </head>
+                
                 <body>
                     <vscode-text-field id="searchInput" placeholder='eg. ".*console.log.*"'>
                       Search
                     </vscode-text-field>
+                    <div class="empty-search-input" id="emptySearchInput">Feel free to use above search input.</div>
                 </body>
             </html>
         `;
@@ -538,7 +550,7 @@ exports.ActivityBarView = ActivityBarView;
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -553,11 +565,11 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(13), exports);
+__exportStar(__webpack_require__(14), exports);
 
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -584,6 +596,9 @@ class WebviewUriProvider {
     getScriptWebviewUri(scriptPath) {
         return this._getWebviewUri(["media", "scripts", ...scriptPath]);
     }
+    getStyleWebviewUri(scriptPath) {
+        return this._getWebviewUri(["media", "styles", ...scriptPath]);
+    }
     /*************
      *  Private  *
      *************/
@@ -595,7 +610,7 @@ exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -610,12 +625,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(15), exports);
 __exportStar(__webpack_require__(16), exports);
+__exportStar(__webpack_require__(17), exports);
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -628,18 +643,12 @@ var WorkspaceStateKeys;
 
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
-
-/***/ }),
-/* 17 */
-/***/ ((module) => {
-
-module.exports = require("path");
 
 /***/ })
 /******/ 	]);
@@ -678,7 +687,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Views_1 = __webpack_require__(8);
+const Views_1 = __webpack_require__(9);
 /**
  ******* NOTES *******
  *

@@ -1,10 +1,7 @@
 import * as vscode from "vscode";
 import GitApi from "../../gitExtensionApi";
 import { WebviewUriProvider } from "../../Helpers";
-import {
-  RepositoryFileChange,
-  WorkspaceStateKeys,
-} from "../../types";
+import { RepositoryFileChange, WorkspaceStateKeys } from "../../types";
 
 enum RENDER_STATE {
   VIEW_LOADING, // Waiting for modules that View depends on.
@@ -70,16 +67,22 @@ export class ActivityBarView implements vscode.Disposable {
   }
 
   private _setWebviewMessageListener(): void {
+    let inputChangeWasNoted = false;
+
     // Webview messages.
     this._view.webview.onDidReceiveMessage(
       (msg: any) => {
         switch (msg.command) {
           case "searchInputChange":
             const { value } = msg;
-            this._handleSearchInputChange(value);
+            this._handleSearchInputChange(value, !inputChangeWasNoted);
+            inputChangeWasNoted = true;
             break;
           case "ActivityBarViewDidLoad":
             this._loadDataFromLocalStorage();
+            break;
+          case "log":
+            console.log(msg.value);
             break;
 
           default:
@@ -100,11 +103,14 @@ export class ActivityBarView implements vscode.Disposable {
     return currentValue;
   }
 
-  private async _handleSearchInputChange(value: string): Promise<void> {
+  private async _handleSearchInputChange(
+    value: string,
+    force: boolean = false
+  ): Promise<void> {
     const { workspaceState } = this._extensionContext;
     const currentValue = this._getSearchInputFromState;
     // Avoid unnecessary renders and updates
-    if (value !== currentValue) {
+    if (value !== currentValue || force) {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
 
       // @NOTE: if UI lags, do not await
@@ -118,12 +124,11 @@ export class ActivityBarView implements vscode.Disposable {
   private _loadDataFromLocalStorage(): void {
     // Load search input content.
     const searchInputValue = this._getSearchInputFromState;
-    if (searchInputValue && searchInputValue.length !== 0) {
-      this._view.webview.postMessage({
-        command: "setSearchInputValue",
-        value: searchInputValue,
-      });
-    }
+
+    this._view.webview.postMessage({
+      command: "setSearchInputValue",
+      value: searchInputValue ?? "",
+    });
   }
 
   /**
@@ -197,11 +202,16 @@ export class ActivityBarView implements vscode.Disposable {
                     <script type="module" src="${this._WebviewUriProvider.getScriptWebviewUri(
                       ["ActivityBarScripts.js"]
                     )}"></script>
+                    <link rel="stylesheet" href="${this._WebviewUriProvider.getStyleWebviewUri(
+                      ["activity-bar-scripts.css"]
+                    )}">
                 </head>
+                
                 <body>
                     <vscode-text-field id="searchInput" placeholder='eg. ".*console.log.*"'>
                       Search
                     </vscode-text-field>
+                    <div class="empty-search-input" id="emptySearchInput">Feel free to use above search input.</div>
                 </body>
             </html>
         `;

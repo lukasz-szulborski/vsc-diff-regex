@@ -176,7 +176,7 @@ export default class GitApi {
 
         // Prepare Promises that will retrieve  file contents.
         contentGetters.push(
-          new Promise(async (resolve, reject) => {
+          new Promise(async (resolve) => {
             try {
               const textDocument = await vscode.workspace.openTextDocument(
                 path
@@ -188,7 +188,7 @@ export default class GitApi {
                 fileLines,
               });
             } catch (error) {
-              // Terminate silently upon encountering non-text (binaries) files.
+              // Terminate silently upon encountering non-text (binary) files.
               resolve(undefined);
             }
           })

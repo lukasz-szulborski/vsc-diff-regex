@@ -41,14 +41,7 @@
           "type": "webview"
         }
       ]
-    },
-    "viewsWelcome": [
-      {
-        "view": "vdr-activity-bar-view",
-        "contents": "Waiting for Git to initialize.",
-        "when": "git.state != initialized"
-      }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "yarn run package",

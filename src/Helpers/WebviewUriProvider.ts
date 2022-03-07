@@ -27,6 +27,10 @@ export class WebviewUriProvider {
     return this._getWebviewUri(["media", "scripts", ...scriptPath]);
   }
 
+  public getStyleWebviewUri(scriptPath: string[]): vscode.Uri {
+    return this._getWebviewUri(["media", "styles", ...scriptPath]);
+  }
+
   /*************
    *  Private  *
    *************/
