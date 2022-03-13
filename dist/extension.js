@@ -106,15 +106,27 @@ class GitApi {
         }
         return results;
     }
-    /*************
-     *  Private  *
-     *************/
+    repositoryExist() {
+        return this.getWorkspaceMainRepository() !== null;
+    }
+    onDidOpenRepository(cb) {
+        this._vscGitApi.onDidOpenRepository(cb);
+    }
+    onDidChangeState(cb) {
+        this._vscGitApi.onDidChangeState(cb);
+    }
+    getState() {
+        return this._vscGitApi.state;
+    }
     getWorkspaceMainRepository() {
         const mainRepo = this._vscGitApi.getRepository(
         // @TODO: [roadmap] consider multiple workspaces
         vscode.workspace.workspaceFolders[0].uri);
         return mainRepo;
     }
+    /*************
+     *  Private  *
+     *************/
     async diffToObject() {
         const repository = this.getWorkspaceMainRepository();
         if (repository) {
@@ -123,7 +135,6 @@ class GitApi {
         }
         return undefined;
     }
-    // For untracked files.
     async parseUntrackedFilesInWorkspace() {
         try {
             const result = [];
@@ -355,6 +366,7 @@ var RENDER_STATE;
 (function (RENDER_STATE) {
     RENDER_STATE[RENDER_STATE["VIEW_LOADING"] = 0] = "VIEW_LOADING";
     RENDER_STATE[RENDER_STATE["VIEW_READY"] = 1] = "VIEW_READY";
+    RENDER_STATE[RENDER_STATE["NO_REPO"] = 2] = "NO_REPO";
 })(RENDER_STATE || (RENDER_STATE = {}));
 /**
  * Class responsible for managing vdr-activity-bar-view WebviewView.
@@ -366,8 +378,8 @@ class ActivityBarView {
         this._gitApi = gitExtensionApi_1.default.Instance;
         this._extensionContext = extensionContext;
         this._view = webviewView;
-        this._view.webview.options = this._getWebviewOptions(); // Configure Webview.
         this._WebviewUriProvider = new Helpers_1.WebviewUriProvider(this._view.webview, this._extensionContext.extensionUri);
+        this._view.webview.options = this._getWebviewOptions(); // Configure Webview.
         // Listen for messages within the View.
         this._setWebviewMessageListener();
         // Listen for text document save.
@@ -376,8 +388,16 @@ class ActivityBarView {
         });
         // Clean disposables.
         this._view.onDidDispose(this.dispose, undefined, this._disposables);
-        // Dependent modules configured, ready to render.
-        this._renderState = RENDER_STATE.VIEW_READY;
+        if (this._gitApi.getState() === "initialized") {
+            this._handleGitApiInitialized();
+        }
+        else {
+            this._gitApi.onDidChangeState((e) => {
+                if (e === "initialized") {
+                    this._handleGitApiInitialized();
+                }
+            });
+        }
         this._renderView();
     }
     dispose() {
@@ -432,6 +452,17 @@ class ActivityBarView {
             // @NOTE: if UI lags, do not await
             await this._applyChanges();
         }
+    }
+    _handleGitApiInitialized() {
+        // @TODO: [roadmap] consider multiple workspaces
+        const repository = this._gitApi.getWorkspaceMainRepository();
+        if (repository) {
+            this._renderState = RENDER_STATE.VIEW_READY;
+        }
+        else {
+            this._renderState = RENDER_STATE.NO_REPO;
+        }
+        this._renderView();
     }
     /**
      * Loads data from extenstion storage to the view.
@@ -496,6 +527,20 @@ class ActivityBarView {
                 </head>
                 <body>
                     Extension is loading...
+                </body>
+            </html>
+        `;
+                break;
+            case RENDER_STATE.NO_REPO:
+                return `
+            <!DOCTYPE html>
+            <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+                </head>
+                <body>
+                    It looks like you don't have any repositories inside opened workspaces.
                 </body>
             </html>
         `;

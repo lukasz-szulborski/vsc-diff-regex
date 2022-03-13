@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as parseDiff from "parse-diff";
 import * as path from "path";
 
-import { API, GitExtension, Repository } from "../declarations/git";
+import { API, APIState, GitExtension, Repository } from "../declarations/git";
 import { RepositoryFileChange } from "./types";
 import { asyncExec } from "./utils";
 import { resolve } from "path";
@@ -115,17 +115,33 @@ export default class GitApi {
     return results;
   }
 
-  /*************
-   *  Private  *
-   *************/
+  public repositoryExist(): boolean {
+    return this.getWorkspaceMainRepository() !== null;
+  }
 
-  private getWorkspaceMainRepository(): Repository | null {
+  public onDidOpenRepository(cb: (e: Repository) => any) {
+    this._vscGitApi.onDidOpenRepository(cb);
+  }
+
+  public onDidChangeState(cb: (e: APIState) => any) {
+    this._vscGitApi.onDidChangeState(cb);
+  }
+
+  public getState(): APIState {
+    return this._vscGitApi.state;
+  }
+
+  public getWorkspaceMainRepository(): Repository | null {
     const mainRepo = this._vscGitApi.getRepository(
       // @TODO: [roadmap] consider multiple workspaces
       vscode.workspace.workspaceFolders![0].uri
     );
     return mainRepo;
   }
+
+  /*************
+   *  Private  *
+   *************/
 
   private async diffToObject(): Promise<parseDiff.File[] | undefined> {
     const repository = this.getWorkspaceMainRepository();
@@ -137,7 +153,6 @@ export default class GitApi {
     return undefined;
   }
 
-  // For untracked files.
   private async parseUntrackedFilesInWorkspace(): Promise<
     RepositoryFileChange[]
   > {

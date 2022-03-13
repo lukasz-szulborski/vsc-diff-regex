@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { Repository } from "../../../declarations/git";
 import GitApi from "../../gitExtensionApi";
 import { WebviewUriProvider } from "../../Helpers";
 import { RepositoryFileChange, WorkspaceStateKeys } from "../../types";
@@ -6,6 +7,7 @@ import { RepositoryFileChange, WorkspaceStateKeys } from "../../types";
 enum RENDER_STATE {
   VIEW_LOADING, // Waiting for modules that View depends on.
   VIEW_READY, // View is ready to render.
+  NO_REPO, // Git VSCode API didn't find any repositories within open workspaces.
 }
 
 /**
@@ -26,12 +28,12 @@ export class ActivityBarView implements vscode.Disposable {
     this._extensionContext = extensionContext;
     this._view = webviewView;
 
-    this._view.webview.options = this._getWebviewOptions(); // Configure Webview.
-
     this._WebviewUriProvider = new WebviewUriProvider(
       this._view.webview,
       this._extensionContext.extensionUri
     );
+
+    this._view.webview.options = this._getWebviewOptions(); // Configure Webview.
 
     // Listen for messages within the View.
     this._setWebviewMessageListener();
@@ -44,8 +46,16 @@ export class ActivityBarView implements vscode.Disposable {
     // Clean disposables.
     this._view.onDidDispose(this.dispose, undefined, this._disposables);
 
-    // Dependent modules configured, ready to render.
-    this._renderState = RENDER_STATE.VIEW_READY;
+    if (this._gitApi.getState() === "initialized") {
+      this._handleGitApiInitialized();
+    } else {
+      this._gitApi.onDidChangeState((e) => {
+        if (e === "initialized") {
+          this._handleGitApiInitialized();
+        }
+      });
+    }
+
     this._renderView();
   }
 
@@ -118,6 +128,18 @@ export class ActivityBarView implements vscode.Disposable {
     }
   }
 
+  private _handleGitApiInitialized(): void {
+    // @TODO: [roadmap] consider multiple workspaces
+    const repository: Repository | null =
+      this._gitApi.getWorkspaceMainRepository();
+    if (repository) {
+      this._renderState = RENDER_STATE.VIEW_READY;
+    } else {
+      this._renderState = RENDER_STATE.NO_REPO;
+    }
+    this._renderView();
+  }
+
   /**
    * Loads data from extenstion storage to the view.
    */
@@ -187,6 +209,20 @@ export class ActivityBarView implements vscode.Disposable {
                 </head>
                 <body>
                     Extension is loading...
+                </body>
+            </html>
+        `;
+        break;
+      case RENDER_STATE.NO_REPO:
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+                </head>
+                <body>
+                    It looks like you don't have any repositories inside opened workspaces.
                 </body>
             </html>
         `;
