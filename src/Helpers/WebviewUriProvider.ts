@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
 
+/**
+ * Helper for retrieving URLs to be used on a web views.
+ */
 export class WebviewUriProvider {
   private _WebviewView: vscode.Webview;
   private _extenstionUri: vscode.Uri;
@@ -20,6 +23,33 @@ export class WebviewUriProvider {
       "webview-ui-toolkit",
       "dist",
       "toolkit.js",
+    ]);
+  }
+
+  public getRedomWebviewUri(): vscode.Uri {
+    return this._getWebviewUri([
+      "node_modules",
+      "redom",
+      "dist",
+      "redom.min.js",
+    ]);
+  }
+
+  public getFileIconsJsWebviewUri(): vscode.Uri {
+    return this._getWebviewUri([
+      "node_modules",
+      "file-icons-js",
+      "dist",
+      "file-icons.js",
+    ]);
+  }
+
+  public getFileIconsCssWebviewUri(): vscode.Uri {
+    return this._getWebviewUri([
+      "node_modules",
+      "file-icons-js",
+      "css",
+      "style.css",
     ]);
   }
 

@@ -810,6 +810,10 @@ file-entry-cache@^6.0.1:
   dependencies:
     flat-cache "^3.0.4"
 
+file-icons-js@websemantics/file-icons-js:
+  version "1.1.0"
+  resolved "https://codeload.github.com/websemantics/file-icons-js/tar.gz/8b397223dc14fa57600f1b06c787dfd2107c4449"
+
 fill-range@^7.0.1:
   version "7.0.1"
   resolved "https://registry.yarnpkg.com/fill-range/-/fill-range-7.0.1.tgz#1919a6a7c75fe38b2c7c77e5198535da9acdda40"
@@ -1396,6 +1400,10 @@ rechoir@^0.7.0:
   resolved "https://registry.yarnpkg.com/rechoir/-/rechoir-0.7.1.tgz#9478a96a1ca135b5e88fc027f03ee92d6c645686"
   dependencies:
     resolve "^1.9.0"
+
+redom@^3.27.1:
+  version "3.27.1"
+  resolved "https://registry.yarnpkg.com/redom/-/redom-3.27.1.tgz#4243cfd4f4e851463fd9736de44af27323830f06"
 
 regexpp@^3.2.0:
   version "3.2.0"

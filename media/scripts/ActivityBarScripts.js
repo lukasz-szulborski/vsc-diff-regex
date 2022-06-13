@@ -16,8 +16,15 @@ function main() {
     switch (msg.command) {
       case "setSearchInputValue":
         const { value } = msg;
-        if (searchInput) searchInput.value = value;
+        if (searchInput) {
+          searchInput.value = value;
+          searchInput.dispatchEvent(new Event("input"));
+        }
         toggleEmptyInputInfo(value);
+        break;
+      case "newResults":
+        const { matches } = msg;
+        handleNewResults(matches);
         break;
       default:
         break;
@@ -33,6 +40,8 @@ function searchInputOnChangeHandler(event) {
   const value = event.target.value;
 
   toggleEmptyInputInfo(value);
+  // Clear container where match results live.
+  if (value.trim().length === 0) clearResultsContainer();
 
   vscode.postMessage({
     command: "searchInputChange",
@@ -46,6 +55,79 @@ function toggleEmptyInputInfo(value) {
   } else {
     document.querySelector("#emptySearchInput").style.display = "none";
   }
+}
+
+/**
+ * Clear tree view with found matches.
+ *
+ * @returns {void}
+ */
+function clearResultsContainer() {
+  const resultsContainer = document.querySelector("#resultsContainer");
+  resultsContainer.innerHTML = "";
+}
+
+/**
+ * Create a tree for displaying matched changes.
+ *
+ * RedomJS helps developers to visualise a DOM tree by looking at code.
+ * Dealing with a plain js would result in a rather messy code.
+ *
+ */
+function handleNewResults(matches) {
+  clearResultsContainer(); // Clear previous results.
+  // @NOTE: in future matches will be contained in many workspaces.
+  if (Array.isArray(matches)) {
+    // Each match is a different file containing many lines with "add" changes.
+    matches.forEach((match) => {
+      log(JSON.stringify(match));
+      const fullFilename = `${match.fileName.name}.${match.fileName.extension}`;
+      // log(match);
+      // Create file element
+      const fileDomElement = redom.el("div.results-container__file", [
+        // Create header for file element.
+        redom.el("div.results-container__file-header", [
+          // Create header contents.
+          redom.el("a.results-container__file-header-icon", [
+            redom.el(`div.${FileIcons.getClassWithColor(fullFilename)}`),
+          ]),
+          redom.el(
+            "span.results-container__file-header-name",
+            { title: match.filePath },
+            redom.text(fullFilename)
+          ),
+        ]),
+        // Create container for lines.
+        redom.el(
+          "div.results-container__file-lines-container",
+          // Create lines.
+          match.changes.map((change) => {
+            const lineElement = redom.el("div.results-container__file-line", [
+              redom.el("span.results-container__file-line-change", [
+                redom.text(change.content),
+              ]),
+              redom.text(change.line),
+            ]);
+            lineElement.addEventListener("click", function () {
+              log(match);
+              handleLineChangeClick(change, match.fullFilePath);
+            });
+            return lineElement;
+          })
+        ),
+      ]);
+      // Insert file element into a container. (In future a workspace)
+      resultsContainer.appendChild(fileDomElement);
+    });
+  }
+}
+
+function handleLineChangeClick(change, fullFilePath) {
+  vscode.postMessage({
+    command: "changeClick",
+    change,
+    fullFilePath,
+  });
 }
 
 function log(value) {

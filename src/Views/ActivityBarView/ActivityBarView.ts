@@ -3,6 +3,7 @@ import { Repository } from "../../../declarations/git";
 import GitApi from "../../gitExtensionApi";
 import { WebviewUriProvider } from "../../Helpers";
 import { RepositoryFileChange, WorkspaceStateKeys } from "../../types";
+import { filenameFromPath } from "../../utils";
 
 enum RENDER_STATE {
   VIEW_LOADING, // Waiting for modules that View depends on.
@@ -81,7 +82,7 @@ export class ActivityBarView implements vscode.Disposable {
 
     // Webview messages.
     this._view.webview.onDidReceiveMessage(
-      (msg: any) => {
+      async (msg: any) => {
         switch (msg.command) {
           case "searchInputChange":
             const { value } = msg;
@@ -90,6 +91,10 @@ export class ActivityBarView implements vscode.Disposable {
             break;
           case "ActivityBarViewDidLoad":
             this._loadDataFromLocalStorage();
+            break;
+          case "changeClick":
+            const { fullFilePath, change } = msg;
+            await this._handleChangeClick(fullFilePath, change.line);
             break;
           case "log":
             console.log(msg.value);
@@ -120,12 +125,35 @@ export class ActivityBarView implements vscode.Disposable {
     const { workspaceState } = this._extensionContext;
     const currentValue = this._getSearchInputFromState;
     // Avoid unnecessary renders and updates
+    // @TODO: force should be made on every reload of this view (leaving the sidebar aswell)
     if (value !== currentValue || force) {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
+    }
 
+    if (value && value.length !== 0) {
       // @NOTE: if UI lags, do not await
+      // Always when input was changed, check for new search results.
       await this._applyChanges();
     }
+  }
+
+  /**
+   * Open text document in an editor.
+   *
+   * @param fullFilePath path pointing to clicked line of changed document
+   * @param line number of line where change occured
+   */
+  private async _handleChangeClick(fullFilePath: string, line: number) {
+    // @TODO: catch statement
+    const doc = await vscode.workspace.openTextDocument(`${fullFilePath}`);
+    const editor = await vscode.window.showTextDocument(doc);
+    editor.revealRange(
+      new vscode.Range(
+        new vscode.Position(line, 0),
+        new vscode.Position(line, 0)
+      ),
+      vscode.TextEditorRevealType.InCenter
+    );
   }
 
   private _handleGitApiInitialized(): void {
@@ -146,7 +174,6 @@ export class ActivityBarView implements vscode.Disposable {
   private _loadDataFromLocalStorage(): void {
     // Load search input content.
     const searchInputValue = this._getSearchInputFromState;
-
     this._view.webview.postMessage({
       command: "setSearchInputValue",
       value: searchInputValue ?? "",
@@ -167,8 +194,8 @@ export class ActivityBarView implements vscode.Disposable {
       const filteredChanges: RepositoryFileChange[] = [];
       const regex = new RegExp(searchInputValue, "g"); // Parse search term as RegEx.
       diff.forEach((changedFile) => {
+        let newIndex: undefined | number = undefined;
         changedFile.changes.forEach((fileChange) => {
-          let newIndex = undefined;
           // @NOTE: For now consider only 'add' changes. Maybe later add ability to change this in extension settings.
           if (
             fileChange.type === "add" &&
@@ -179,6 +206,8 @@ export class ActivityBarView implements vscode.Disposable {
               newIndex =
                 filteredChanges.push({
                   filePath: changedFile.filePath,
+                  fileName: filenameFromPath(changedFile.filePath),
+                  fullFilePath: changedFile.fullFilePath,
                   changes: [fileChange],
                 }) - 1;
             } else {
@@ -189,8 +218,10 @@ export class ActivityBarView implements vscode.Disposable {
         });
       });
 
-      // @TOOD: Send data to view (will rerender upon this message).
-      // ...
+      this._view.webview.postMessage({
+        command: "newResults",
+        matches: filteredChanges,
+      });
     }
   }
 
@@ -235,9 +266,12 @@ export class ActivityBarView implements vscode.Disposable {
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width,initial-scale=1.0">
                     <script type="module" src="${this._WebviewUriProvider.getUiToolkitWebviewUri()}"></script>
+                    <script type="module" src="${this._WebviewUriProvider.getRedomWebviewUri()}"></script>
+                    <script type="module" src="${this._WebviewUriProvider.getFileIconsJsWebviewUri()}"></script>
                     <script type="module" src="${this._WebviewUriProvider.getScriptWebviewUri(
                       ["ActivityBarScripts.js"]
                     )}"></script>
+                    <link rel="stylesheet" href="${this._WebviewUriProvider.getFileIconsCssWebviewUri()}">
                     <link rel="stylesheet" href="${this._WebviewUriProvider.getStyleWebviewUri(
                       ["activity-bar-scripts.css"]
                     )}">
@@ -248,6 +282,7 @@ export class ActivityBarView implements vscode.Disposable {
                       Search
                     </vscode-text-field>
                     <div class="empty-search-input" id="emptySearchInput">Feel free to use above search input.</div>
+                    <div class="results-container" id="resultsContainer"></div>
                 </body>
             </html>
         `;
@@ -277,6 +312,6 @@ export class ActivityBarView implements vscode.Disposable {
 
   private _onDidRender(): void {
     // @TODO: ???
-    this._loadDataFromLocalStorage();
+    // this._loadDataFromLocalStorage();
   }
 }

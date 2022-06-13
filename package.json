@@ -74,7 +74,9 @@
   "dependencies": {
     "@vscode/webview-ui-toolkit": "^0.9.1",
     "debug": "^4.3.3",
+    "file-icons-js": "websemantics/file-icons-js",
     "findit": "^2.0.0",
-    "parse-diff": "^0.9.0"
+    "parse-diff": "^0.9.0",
+    "redom": "^3.27.1"
   }
 }

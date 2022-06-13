@@ -3,9 +3,8 @@ import * as parseDiff from "parse-diff";
 import * as path from "path";
 
 import { API, APIState, GitExtension, Repository } from "../declarations/git";
-import { RepositoryFileChange } from "./types";
-import { asyncExec } from "./utils";
-import { resolve } from "path";
+import { RepositoryDiffObject, RepositoryFileChange } from "./types";
+import { asyncExec, filenameFromPath } from "./utils";
 
 type RemodelParsedDiffConfig = {
   includeUntracked?: boolean;
@@ -69,7 +68,7 @@ export default class GitApi {
 
     // Include changes from `git diff`
     if (parsedDiff) {
-      parsedDiff.forEach((file, i) => {
+      parsedDiff.diffs.forEach((file, i) => {
         const parsedChangedFile: RepositoryFileChange = {
           changes: file.chunks.flatMap((chunk) => {
             return chunk.changes.map((change) => {
@@ -100,6 +99,8 @@ export default class GitApi {
           }),
           // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
           filePath: file.from!,
+          fileName: filenameFromPath(file.from!),
+          fullFilePath: `${parsedDiff.repository.rootUri.path}/${file.from!}`,
         };
         results.push(parsedChangedFile);
       });
@@ -143,11 +144,18 @@ export default class GitApi {
    *  Private  *
    *************/
 
-  private async diffToObject(): Promise<parseDiff.File[] | undefined> {
+  /**
+   * Get file diffs in workspace repositories.
+   *
+   */
+  private async diffToObject(): Promise<RepositoryDiffObject | undefined> {
     const repository = this.getWorkspaceMainRepository();
     if (repository) {
       const result = parseDiff(await repository.diff());
-      return result;
+      return {
+        diffs: result,
+        repository,
+      };
     }
 
     return undefined;
@@ -180,6 +188,7 @@ export default class GitApi {
       const contentGetters: Promise<
         | {
             relativeFilePath: string;
+            fullFilePath: string;
             fileLines: string[];
           }
         | undefined
@@ -201,6 +210,7 @@ export default class GitApi {
               resolve({
                 relativeFilePath,
                 fileLines,
+                fullFilePath: path,
               });
             } catch (error) {
               // Terminate silently upon encountering non-text (binary) files.
@@ -219,6 +229,8 @@ export default class GitApi {
           const { fileLines, relativeFilePath } = fileContents;
           result.push({
             filePath: relativeFilePath,
+            fileName: filenameFromPath(relativeFilePath),
+            fullFilePath: fileContents.fullFilePath,
             changes: fileLines.map((line, i) => ({
               content: line,
               line: i,

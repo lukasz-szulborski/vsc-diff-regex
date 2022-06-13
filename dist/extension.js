@@ -62,7 +62,7 @@ class GitApi {
         const results = [];
         // Include changes from `git diff`
         if (parsedDiff) {
-            parsedDiff.forEach((file, i) => {
+            parsedDiff.diffs.forEach((file, i) => {
                 const parsedChangedFile = {
                     changes: file.chunks.flatMap((chunk) => {
                         return chunk.changes.map((change) => {
@@ -95,6 +95,8 @@ class GitApi {
                     }),
                     // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
                     filePath: file.from,
+                    fileName: (0, utils_1.filenameFromPath)(file.from),
+                    fullFilePath: `${parsedDiff.repository.rootUri.path}/${file.from}`,
                 };
                 results.push(parsedChangedFile);
             });
@@ -127,11 +129,18 @@ class GitApi {
     /*************
      *  Private  *
      *************/
+    /**
+     * Get file diffs in workspace repositories.
+     *
+     */
     async diffToObject() {
         const repository = this.getWorkspaceMainRepository();
         if (repository) {
             const result = parseDiff(await repository.diff());
-            return result;
+            return {
+                diffs: result,
+                repository,
+            };
         }
         return undefined;
     }
@@ -163,6 +172,7 @@ class GitApi {
                         resolve({
                             relativeFilePath,
                             fileLines,
+                            fullFilePath: path,
                         });
                     }
                     catch (error) {
@@ -179,6 +189,8 @@ class GitApi {
                     const { fileLines, relativeFilePath } = fileContents;
                     result.push({
                         filePath: relativeFilePath,
+                        fileName: (0, utils_1.filenameFromPath)(relativeFilePath),
+                        fullFilePath: fileContents.fullFilePath,
                         changes: fileLines.map((line, i) => ({
                             content: line,
                             line: i,
@@ -236,6 +248,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(6), exports);
+__exportStar(__webpack_require__(9), exports);
 
 
 /***/ }),
@@ -265,6 +278,9 @@ __exportStar(__webpack_require__(7), exports);
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.asyncExec = void 0;
 const cp = __webpack_require__(8);
+/**
+ * Run command on a child process.
+ */
 const asyncExec = (command) => {
     return new Promise((resolve, reject) => {
         cp.exec(command, (error, stdout, x) => {
@@ -304,6 +320,40 @@ __exportStar(__webpack_require__(10), exports);
 
 /***/ }),
 /* 10 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.filenameFromPath = void 0;
+/**
+ * Get filename and it's extension from full file path.
+ */
+const filenameFromPath = (path) => {
+    // split by front/back slash.
+    const pathParts = path.split(/[\/\\]/g);
+    // Get last element, split by a dot.
+    const fileName = pathParts[pathParts.length - 1];
+    const fileNameSplitted = fileName.split(".");
+    const numOfFilenameElements = fileNameSplitted.length;
+    // Return name and extension.
+    if (numOfFilenameElements === 1) {
+        return {
+            name: fileNameSplitted[0],
+            extension: null,
+        };
+    }
+    else {
+        return {
+            name: fileNameSplitted.slice(0, numOfFilenameElements - 1).join("."),
+            extension: fileNameSplitted[numOfFilenameElements - 1],
+        };
+    }
+};
+exports.filenameFromPath = filenameFromPath;
+
+
+/***/ }),
+/* 11 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -318,18 +368,37 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(11), exports);
 __exportStar(__webpack_require__(12), exports);
 
 
 /***/ }),
-/* 11 */
+/* 12 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(13), exports);
+__exportStar(__webpack_require__(14), exports);
+
+
+/***/ }),
+/* 13 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(10);
+const _1 = __webpack_require__(12);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -352,7 +421,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -360,8 +429,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(13);
-const types_1 = __webpack_require__(15);
+const Helpers_1 = __webpack_require__(15);
+const types_1 = __webpack_require__(17);
+const utils_1 = __webpack_require__(5);
 var RENDER_STATE;
 (function (RENDER_STATE) {
     RENDER_STATE[RENDER_STATE["VIEW_LOADING"] = 0] = "VIEW_LOADING";
@@ -418,7 +488,7 @@ class ActivityBarView {
     _setWebviewMessageListener() {
         let inputChangeWasNoted = false;
         // Webview messages.
-        this._view.webview.onDidReceiveMessage((msg) => {
+        this._view.webview.onDidReceiveMessage(async (msg) => {
             switch (msg.command) {
                 case "searchInputChange":
                     const { value } = msg;
@@ -427,6 +497,10 @@ class ActivityBarView {
                     break;
                 case "ActivityBarViewDidLoad":
                     this._loadDataFromLocalStorage();
+                    break;
+                case "changeClick":
+                    const { fullFilePath, change } = msg;
+                    await this._handleChangeClick(fullFilePath, change.line);
                     break;
                 case "log":
                     console.log(msg.value);
@@ -447,11 +521,27 @@ class ActivityBarView {
         const { workspaceState } = this._extensionContext;
         const currentValue = this._getSearchInputFromState;
         // Avoid unnecessary renders and updates
+        // @TODO: force should be made on every reload of this view (leaving the sidebar aswell)
         if (value !== currentValue || force) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
+        }
+        if (value && value.length !== 0) {
             // @NOTE: if UI lags, do not await
+            // Always when input was changed, check for new search results.
             await this._applyChanges();
         }
+    }
+    /**
+     * Open text document in an editor.
+     *
+     * @param fullFilePath path pointing to clicked line of changed document
+     * @param line number of line where change occured
+     */
+    async _handleChangeClick(fullFilePath, line) {
+        // @TODO: catch statement
+        const doc = await vscode.workspace.openTextDocument(`${fullFilePath}`);
+        const editor = await vscode.window.showTextDocument(doc);
+        editor.revealRange(new vscode.Range(new vscode.Position(line, 0), new vscode.Position(line, 0)), vscode.TextEditorRevealType.InCenter);
     }
     _handleGitApiInitialized() {
         // @TODO: [roadmap] consider multiple workspaces
@@ -488,8 +578,8 @@ class ActivityBarView {
             const filteredChanges = [];
             const regex = new RegExp(searchInputValue, "g"); // Parse search term as RegEx.
             diff.forEach((changedFile) => {
+                let newIndex = undefined;
                 changedFile.changes.forEach((fileChange) => {
-                    let newIndex = undefined;
                     // @NOTE: For now consider only 'add' changes. Maybe later add ability to change this in extension settings.
                     if (fileChange.type === "add" &&
                         fileChange.content.match(regex) !== null) {
@@ -498,6 +588,8 @@ class ActivityBarView {
                             newIndex =
                                 filteredChanges.push({
                                     filePath: changedFile.filePath,
+                                    fileName: (0, utils_1.filenameFromPath)(changedFile.filePath),
+                                    fullFilePath: changedFile.fullFilePath,
                                     changes: [fileChange],
                                 }) - 1;
                         }
@@ -508,8 +600,10 @@ class ActivityBarView {
                     }
                 });
             });
-            // @TOOD: Send data to view (will rerender upon this message).
-            // ...
+            this._view.webview.postMessage({
+                command: "newResults",
+                matches: filteredChanges,
+            });
         }
     }
     /**
@@ -553,7 +647,10 @@ class ActivityBarView {
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width,initial-scale=1.0">
                     <script type="module" src="${this._WebviewUriProvider.getUiToolkitWebviewUri()}"></script>
+                    <script type="module" src="${this._WebviewUriProvider.getRedomWebviewUri()}"></script>
+                    <script type="module" src="${this._WebviewUriProvider.getFileIconsJsWebviewUri()}"></script>
                     <script type="module" src="${this._WebviewUriProvider.getScriptWebviewUri(["ActivityBarScripts.js"])}"></script>
+                    <link rel="stylesheet" href="${this._WebviewUriProvider.getFileIconsCssWebviewUri()}">
                     <link rel="stylesheet" href="${this._WebviewUriProvider.getStyleWebviewUri(["activity-bar-scripts.css"])}">
                 </head>
                 
@@ -562,6 +659,7 @@ class ActivityBarView {
                       Search
                     </vscode-text-field>
                     <div class="empty-search-input" id="emptySearchInput">Feel free to use above search input.</div>
+                    <div class="results-container" id="resultsContainer"></div>
                 </body>
             </html>
         `;
@@ -588,70 +686,10 @@ class ActivityBarView {
     }
     _onDidRender() {
         // @TODO: ???
-        this._loadDataFromLocalStorage();
+        // this._loadDataFromLocalStorage();
     }
 }
 exports.ActivityBarView = ActivityBarView;
-
-
-/***/ }),
-/* 13 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(14), exports);
-
-
-/***/ }),
-/* 14 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.WebviewUriProvider = void 0;
-const vscode = __webpack_require__(1);
-class WebviewUriProvider {
-    constructor(WebviewView, extenstionUri) {
-        this._WebviewView = WebviewView;
-        this._extenstionUri = extenstionUri;
-    }
-    /************
-     *  Public  *
-     ************/
-    getUiToolkitWebviewUri() {
-        return this._getWebviewUri([
-            "node_modules",
-            "@vscode",
-            "webview-ui-toolkit",
-            "dist",
-            "toolkit.js",
-        ]);
-    }
-    getScriptWebviewUri(scriptPath) {
-        return this._getWebviewUri(["media", "scripts", ...scriptPath]);
-    }
-    getStyleWebviewUri(scriptPath) {
-        return this._getWebviewUri(["media", "styles", ...scriptPath]);
-    }
-    /*************
-     *  Private  *
-     *************/
-    _getWebviewUri(modulePathList) {
-        return this._WebviewView.asWebviewUri(vscode.Uri.joinPath(this._extenstionUri, ...modulePathList));
-    }
-}
-exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
@@ -671,11 +709,99 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(16), exports);
-__exportStar(__webpack_require__(17), exports);
 
 
 /***/ }),
 /* 16 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WebviewUriProvider = void 0;
+const vscode = __webpack_require__(1);
+/**
+ * Helper for retrieving URLs to be used on a web views.
+ */
+class WebviewUriProvider {
+    constructor(WebviewView, extenstionUri) {
+        this._WebviewView = WebviewView;
+        this._extenstionUri = extenstionUri;
+    }
+    /************
+     *  Public  *
+     ************/
+    getUiToolkitWebviewUri() {
+        return this._getWebviewUri([
+            "node_modules",
+            "@vscode",
+            "webview-ui-toolkit",
+            "dist",
+            "toolkit.js",
+        ]);
+    }
+    getRedomWebviewUri() {
+        return this._getWebviewUri([
+            "node_modules",
+            "redom",
+            "dist",
+            "redom.min.js",
+        ]);
+    }
+    getFileIconsJsWebviewUri() {
+        return this._getWebviewUri([
+            "node_modules",
+            "file-icons-js",
+            "dist",
+            "file-icons.js",
+        ]);
+    }
+    getFileIconsCssWebviewUri() {
+        return this._getWebviewUri([
+            "node_modules",
+            "file-icons-js",
+            "css",
+            "style.css",
+        ]);
+    }
+    getScriptWebviewUri(scriptPath) {
+        return this._getWebviewUri(["media", "scripts", ...scriptPath]);
+    }
+    getStyleWebviewUri(scriptPath) {
+        return this._getWebviewUri(["media", "styles", ...scriptPath]);
+    }
+    /*************
+     *  Private  *
+     *************/
+    _getWebviewUri(modulePathList) {
+        return this._WebviewView.asWebviewUri(vscode.Uri.joinPath(this._extenstionUri, ...modulePathList));
+    }
+}
+exports.WebviewUriProvider = WebviewUriProvider;
+
+
+/***/ }),
+/* 17 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(18), exports);
+__exportStar(__webpack_require__(19), exports);
+__exportStar(__webpack_require__(20), exports);
+
+
+/***/ }),
+/* 18 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -688,7 +814,15 @@ var WorkspaceStateKeys;
 
 
 /***/ }),
-/* 17 */
+/* 19 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 20 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -732,7 +866,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Views_1 = __webpack_require__(9);
+const Views_1 = __webpack_require__(11);
 /**
  ******* NOTES *******
  *

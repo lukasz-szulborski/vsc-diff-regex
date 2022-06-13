@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { ActivityBarView } from ".";
-import { WebviewUriProvider } from "../../Helpers/WebviewUriProvider";
 
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
