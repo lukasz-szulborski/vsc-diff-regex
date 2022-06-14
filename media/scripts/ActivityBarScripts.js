@@ -80,9 +80,7 @@ function handleNewResults(matches) {
   if (Array.isArray(matches)) {
     // Each match is a different file containing many lines with "add" changes.
     matches.forEach((match) => {
-      log(JSON.stringify(match));
       const fullFilename = `${match.fileName.name}.${match.fileName.extension}`;
-      // log(match);
       // Create file element
       const fileDomElement = redom.el("div.results-container__file", [
         // Create header for file element.
@@ -109,7 +107,6 @@ function handleNewResults(matches) {
               redom.text(change.line),
             ]);
             lineElement.addEventListener("click", function () {
-              log(match);
               handleLineChangeClick(change, match.fullFilePath);
             });
             return lineElement;

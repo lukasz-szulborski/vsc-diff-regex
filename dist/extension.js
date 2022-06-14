@@ -453,9 +453,19 @@ class ActivityBarView {
         // Listen for messages within the View.
         this._setWebviewMessageListener();
         // Listen for text document save.
-        vscode.workspace.onDidSaveTextDocument(async (e) => {
+        const saveListener = vscode.workspace.onDidSaveTextDocument(async () => {
             await this._applyChanges();
         });
+        // Changing tabs.
+        const closeListener = vscode.workspace.onDidOpenTextDocument(async () => {
+            // @TODO:
+            // [X] Listen for new tab open.
+            // [X] Repaint searched term decorations.
+            // [ ] Check if it works for re-opening closed tabs
+            // [ ] Check if it works po splitting into new tab.
+            await this._applyChanges();
+        });
+        this._disposables.push(saveListener, closeListener);
         // Clean disposables.
         this._view.onDidDispose(this.dispose, undefined, this._disposables);
         if (this._gitApi.getState() === "initialized") {
@@ -500,7 +510,7 @@ class ActivityBarView {
                     break;
                 case "changeClick":
                     const { fullFilePath, change } = msg;
-                    await this._handleChangeClick(fullFilePath, change.line);
+                    await this._handleChangeClick(fullFilePath, change);
                     break;
                 case "log":
                     console.log(msg.value);
@@ -537,11 +547,20 @@ class ActivityBarView {
      * @param fullFilePath path pointing to clicked line of changed document
      * @param line number of line where change occured
      */
-    async _handleChangeClick(fullFilePath, line) {
+    async _handleChangeClick(fullFilePath, change) {
         // @TODO: catch statement
         const doc = await vscode.workspace.openTextDocument(`${fullFilePath}`);
         const editor = await vscode.window.showTextDocument(doc);
-        editor.revealRange(new vscode.Range(new vscode.Position(line, 0), new vscode.Position(line, 0)), vscode.TextEditorRevealType.InCenter);
+        // Center at the position of the change.
+        editor.revealRange(new vscode.Range(new vscode.Position(change.line, 0), new vscode.Position(change.line, 0)), vscode.TextEditorRevealType.InCenter);
+        // @TODO: move to painting subroutine
+        // Highlight change occurances (using decorations).
+        const decoration = vscode.window.createTextEditorDecorationType({
+            backgroundColor: "red",
+        });
+        editor.setDecorations(decoration, [
+            new vscode.Range(new vscode.Position(20, 0), new vscode.Position(20, 40)),
+        ]);
     }
     _handleGitApiInitialized() {
         // @TODO: [roadmap] consider multiple workspaces
@@ -567,11 +586,14 @@ class ActivityBarView {
     }
     /**
      * Subroutine that is run on changes. Analyzes `git diff`, filters by current
-     * regex search and repaints changes tree.
+     * regex search, repaints changes tree and decorated active editor.
      */
     async _applyChanges() {
         const searchInputValue = this._getSearchInputFromState;
         if (searchInputValue) {
+            // -----
+            // -- PARSING SUBROUTINE
+            // -----
             // Run and parse `git diff`.
             const diff = await this._gitApi.parseDiff();
             // Filter with saved regex term.
@@ -600,6 +622,18 @@ class ActivityBarView {
                     }
                 });
             });
+            // -----
+            // -- PAINTING CHANGES SUBROUTINE
+            // -----
+            // Get all visible to the user editors
+            const editors = vscode.window.visibleTextEditors;
+            // Now, for every found active editor, check whether document in it has any changes.
+            const changedPaths = filteredChanges.map((change) => change.fullFilePath);
+            const relevantEditors = editors.filter((editor) => changedPaths.includes(editor.document.uri.path));
+            // If the document has changes, get changed lines and match changed phrases with searched term.
+            // Find the beginning and the ending of searched term.
+            // Create decorations and apply styles in found positions.
+            // Voila.
             this._view.webview.postMessage({
                 command: "newResults",
                 matches: filteredChanges,
