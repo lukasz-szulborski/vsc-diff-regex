@@ -3,19 +3,20 @@ import * as parseDiff from "parse-diff";
 import { Repository } from "../../declarations/git";
 import { Filename } from "./Filename";
 
-type FileChangeType = "normal" | "add" | "del";
+type LineChangeType = "normal" | "add" | "del";
 
-export type FileChange = {
+export type LineChange = {
   line: number;
   content: string;
-  type: FileChangeType;
+  type: LineChangeType;
+  isVisible: boolean;
 };
 
 export type RepositoryFileChange = {
   fullFilePath: string;
   filePath: string;
   fileName: Filename;
-  changes: FileChange[];
+  changes: LineChange[];
 };
 
 export interface RepositoryDiffObject {

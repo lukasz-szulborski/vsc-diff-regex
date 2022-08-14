@@ -69,7 +69,6 @@ function clearResultsContainer() {
 
 /**
  * Create a tree for displaying matched changes.
- *
  * RedomJS helps developers to visualise a DOM tree by looking at code.
  * Dealing with a plain js would result in a rather messy code.
  *
@@ -80,6 +79,9 @@ function handleNewResults(matches) {
   if (Array.isArray(matches)) {
     // Each match is a different file containing many lines with "add" changes.
     matches.forEach((match) => {
+      // If this file doesn't have any changes that should be displayed then skip the whole file.
+      if (!match.changes.find((c) => c.isVisible === true)) return;
+
       const fullFilename = `${match.fileName.name}.${match.fileName.extension}`;
       // Create file element
       const fileDomElement = redom.el("div.results-container__file", [
@@ -100,11 +102,13 @@ function handleNewResults(matches) {
           "div.results-container__file-lines-container",
           // Create lines.
           match.changes.map((change) => {
+            if (!change.isVisible) return;
+
             const lineElement = redom.el("div.results-container__file-line", [
               redom.el("span.results-container__file-line-change", [
                 redom.text(change.content),
               ]),
-              redom.text(change.line),
+              redom.text(change.line + 1),
             ]);
             lineElement.addEventListener("click", function () {
               handleLineChangeClick(change, match.fullFilePath);

@@ -9,6 +9,7 @@ import { asyncExec, filenameFromPath } from "./utils";
 type RemodelParsedDiffConfig = {
   includeUntracked?: boolean;
   cleanAddChange?: boolean;
+  cleanDelChange?: boolean;
 };
 
 export default class GitApi {
@@ -62,6 +63,11 @@ export default class GitApi {
       (configExists &&
         (config.cleanAddChange === undefined ||
           config.cleanAddChange === true));
+    const cleanDelChange =
+      !configExists ||
+      (configExists &&
+        (config.cleanDelChange === undefined ||
+          config.cleanDelChange === true));
 
     const parsedDiff = await this.diffToObject();
     const results: RepositoryFileChange[] = [];
@@ -74,25 +80,32 @@ export default class GitApi {
             return chunk.changes.map((change) => {
               if (this.isParseDiffChangeAdd(change)) {
                 return {
-                  line: change.ln,
+                  line: change.ln - 1,
                   content: cleanAddChange
                     ? change.content
                         .replace(/^\+/g, "")
                         .replace(/^( |\t)*/g, "")
                     : change.content,
                   type: "add",
+                  isVisible: true,
                 };
               } else if (this.isParseDiffChangeDelete(change)) {
                 return {
-                  line: change.ln,
-                  content: change.content,
+                  line: change.ln - 1,
+                  content: cleanDelChange
+                    ? change.content
+                        .replace(/^\-/g, "")
+                        .replace(/^( |\t)*/g, "")
+                    : change.content,
                   type: "del",
+                  isVisible: false,
                 };
               } else {
                 return {
-                  line: change.ln1,
+                  line: change.ln1 - 1,
                   content: change.content,
                   type: "normal",
+                  isVisible: false,
                 };
               }
             });
@@ -210,7 +223,7 @@ export default class GitApi {
               resolve({
                 relativeFilePath,
                 fileLines,
-                fullFilePath: path,
+                fullFilePath: `/${path}`,
               });
             } catch (error) {
               // Terminate silently upon encountering non-text (binary) files.
@@ -235,11 +248,11 @@ export default class GitApi {
               content: line,
               line: i,
               type: "add",
+              isVisible: true,
             })),
           });
         }
       });
-
       return result;
     } catch (error) {
       throw error;
