@@ -84,7 +84,7 @@ export default class GitApi {
                   content: cleanAddChange
                     ? change.content
                         .replace(/^\+/g, "")
-                        .replace(/^( |\t)*/g, "")
+                        // .replace(/^( |\t)*/g, "")
                     : change.content,
                   type: "add",
                   isVisible: true,
@@ -95,7 +95,7 @@ export default class GitApi {
                   content: cleanDelChange
                     ? change.content
                         .replace(/^\-/g, "")
-                        .replace(/^( |\t)*/g, "")
+                        // .replace(/^( |\t)*/g, "")
                     : change.content,
                   type: "del",
                   isVisible: false,

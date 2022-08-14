@@ -76,7 +76,7 @@ class GitApi {
                                     content: cleanAddChange
                                         ? change.content
                                             .replace(/^\+/g, "")
-                                            .replace(/^( |\t)*/g, "")
+                                        // .replace(/^( |\t)*/g, "")
                                         : change.content,
                                     type: "add",
                                     isVisible: true,
@@ -88,7 +88,7 @@ class GitApi {
                                     content: cleanDelChange
                                         ? change.content
                                             .replace(/^\-/g, "")
-                                            .replace(/^( |\t)*/g, "")
+                                        // .replace(/^( |\t)*/g, "")
                                         : change.content,
                                     type: "del",
                                     isVisible: false,
@@ -987,12 +987,12 @@ class ActivityBarView {
         const filteredChanges = [];
         // Containing filtered changes (File name -> change line -> change) Hash map. Index to process changes within a single line easier.
         const filteredChangesHashMap = {};
-        const regex = new RegExp(searchInputValue, "g");
+        const searchedTermRegex = new RegExp(searchInputValue, "g");
         diff.forEach((changedFile) => {
             let newIndex = undefined;
             changedFile.changes.forEach((fileChange) => {
                 if ((fileChange.type === "add" &&
-                    fileChange.content.match(regex) !== null) ||
+                    fileChange.content.match(searchedTermRegex) !== null) ||
                     fileChange.type === "del") {
                     // Create different object types for changed files. Later it will be easier to reason about this changed files.
                     if (newIndex === undefined) {
@@ -1077,13 +1077,12 @@ class ActivityBarView {
                         return;
                     }
                     // Find terms in edit script.
-                    const foundTerms = operation.content.match(regex);
+                    const foundTerms = operation.content.match(searchedTermRegex);
                     if (foundTerms) {
                         termFoundInChanges = true;
                     }
-                    // Extact positions.
-                    // ...
-                    // Paint...
+                    // Extract positions.
+                    const res = searchedTermRegex.exec(currentContent);
                     // Create decorations.
                     // ...
                     // Apply styles in found positions (vector or tuples (line, startCol, endCol)).

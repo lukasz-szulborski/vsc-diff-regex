@@ -246,13 +246,13 @@ export class ActivityBarView implements vscode.Disposable {
       string,
       Record<number, LineChange[]>
     > = {};
-    const regex = new RegExp(searchInputValue, "g");
+    const searchedTermRegex = new RegExp(searchInputValue, "g");
     diff.forEach((changedFile) => {
       let newIndex: undefined | number = undefined;
       changedFile.changes.forEach((fileChange) => {
         if (
           (fileChange.type === "add" &&
-            fileChange.content.match(regex) !== null) ||
+            fileChange.content.match(searchedTermRegex) !== null) ||
           fileChange.type === "del"
         ) {
           // Create different object types for changed files. Later it will be easier to reason about this changed files.
@@ -320,8 +320,7 @@ export class ActivityBarView implements vscode.Disposable {
         const change = changes[changeLineNumber];
         let isModified = change.length === 2;
         let isPlainAdd = change.length === 1;
-        let originalContent: undefined | string,
-          currentContent: undefined | string;
+        let originalContent: string, currentContent: string;
         if (isPlainAdd) {
           // Consider whole line as changed.
           originalContent = "";
@@ -356,16 +355,14 @@ export class ActivityBarView implements vscode.Disposable {
           }
 
           // Find terms in edit script.
-          const foundTerms = operation.content.match(regex);
+          const foundTerms = operation.content.match(searchedTermRegex);
 
           if (foundTerms) {
             termFoundInChanges = true;
           }
 
-          // Extact positions.
-          // ...
-
-          // Paint...
+          // Extract positions.
+          const res = searchedTermRegex.exec(currentContent);
 
           // Create decorations.
           // ...
@@ -384,7 +381,6 @@ export class ActivityBarView implements vscode.Disposable {
           );
         }
       }
-
     });
 
     const fullyFilteredChanges: typeof filteredChanges = filteredChanges.map(
