@@ -442,11 +442,11 @@ const is_end_of_snake = (cords, snake_length, s1, s2) => {
         const aux = (s1_index, s2_index, acc) => {
             const are_equal = s1[s1_index] === s2[s2_index];
             if (are_equal === false || s1_index <= 0 || s2_index <= 0) {
-                return acc;
+                return are_equal ? acc + 1 : acc;
             }
             return aux(s1_index - 1, s2_index - 1, acc + 1);
         };
-        return aux(x - 1, y - 1, 0) === snake_length;
+        return aux(x - 1, y - 1, 0) >= snake_length;
     }
 };
 /*
@@ -987,7 +987,7 @@ class ActivityBarView {
         const filteredChanges = [];
         // Containing filtered changes (File name -> change line -> change) Hash map. Index to process changes within a single line easier.
         const filteredChangesHashMap = {};
-        const searchedTermRegex = new RegExp(searchInputValue, "g");
+        const searchedTermRegex = new RegExp(searchInputValue);
         diff.forEach((changedFile) => {
             let newIndex = undefined;
             changedFile.changes.forEach((fileChange) => {
@@ -1077,12 +1077,11 @@ class ActivityBarView {
                         return;
                     }
                     // Find terms in edit script.
-                    const foundTerms = operation.content.match(searchedTermRegex);
-                    if (foundTerms) {
+                    const foundTerms = searchedTermRegex.exec(operation.content);
+                    if (foundTerms && foundTerms[0]) {
                         termFoundInChanges = true;
                     }
-                    // Extract positions.
-                    const res = searchedTermRegex.exec(currentContent);
+                    // Find terms in edit script and Extract positions.
                     // Create decorations.
                     // ...
                     // Apply styles in found positions (vector or tuples (line, startCol, endCol)).
@@ -1097,6 +1096,7 @@ class ActivityBarView {
                 }
             }
         });
+        // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
         const fullyFilteredChanges = filteredChanges.map((fileChange, fileChangeIndex) => {
             const linesToFilter = filteredChangesLinesToFilterOut[fileChangeIndex];
             const updatedFileChange = { ...fileChange };

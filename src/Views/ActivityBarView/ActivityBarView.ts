@@ -246,7 +246,7 @@ export class ActivityBarView implements vscode.Disposable {
       string,
       Record<number, LineChange[]>
     > = {};
-    const searchedTermRegex = new RegExp(searchInputValue, "g");
+    const searchedTermRegex = new RegExp(searchInputValue);
     diff.forEach((changedFile) => {
       let newIndex: undefined | number = undefined;
       changedFile.changes.forEach((fileChange) => {
@@ -347,7 +347,7 @@ export class ActivityBarView implements vscode.Disposable {
         );
 
         let termFoundInChanges = false;
-
+          
         originalToCurrentEditScript.operations.forEach((operation) => {
           // Use only adds.
           if (operation.operation_type !== "Insert") {
@@ -355,14 +355,13 @@ export class ActivityBarView implements vscode.Disposable {
           }
 
           // Find terms in edit script.
-          const foundTerms = operation.content.match(searchedTermRegex);
-
-          if (foundTerms) {
+          const foundTerms = searchedTermRegex.exec(operation.content);
+          
+          if (foundTerms && foundTerms[0]) {
             termFoundInChanges = true;
           }
 
-          // Extract positions.
-          const res = searchedTermRegex.exec(currentContent);
+          // Find terms in edit script and Extract positions.
 
           // Create decorations.
           // ...
@@ -383,6 +382,7 @@ export class ActivityBarView implements vscode.Disposable {
       }
     });
 
+    // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
     const fullyFilteredChanges: typeof filteredChanges = filteredChanges.map(
       (fileChange, fileChangeIndex) => {
         const linesToFilter = filteredChangesLinesToFilterOut[fileChangeIndex];
