@@ -94,11 +94,11 @@ const is_end_of_snake = (
     const aux = (s1_index: number, s2_index: number, acc: number): number => {
       const are_equal = s1[s1_index] === s2[s2_index];
       if (are_equal === false || s1_index <= 0 || s2_index <= 0) {
-        return acc;
+        return are_equal ? acc + 1 : acc;
       }
       return aux(s1_index - 1, s2_index - 1, acc + 1);
     };
-    return aux(x - 1, y - 1, 0) === snake_length;
+    return aux(x - 1, y - 1, 0) >= snake_length;
   }
 };
 
