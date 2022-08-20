@@ -3,6 +3,8 @@ import { Repository } from "../../../declarations/git";
 import GitApi from "../../gitExtensionApi";
 import { WebviewUriProvider } from "../../Helpers";
 import {
+  ActivityBarViewLoadingState,
+  ActivityBarViewLoadingStateKeys,
   LineChange,
   RepositoryFileChange,
   WorkspaceStateKeys,
@@ -26,6 +28,9 @@ export class ActivityBarView implements vscode.Disposable {
   private _extensionContext: vscode.ExtensionContext;
   private _gitApi: GitApi = GitApi.Instance;
   private _textEditorsDecorations: vscode.TextEditorDecorationType[] = [];
+  private _loadingState: ActivityBarViewLoadingState = {
+    gitRepositories: true,
+  };
 
   constructor(
     extensionContext: vscode.ExtensionContext,
@@ -93,9 +98,32 @@ export class ActivityBarView implements vscode.Disposable {
     };
   }
 
+  /**
+   * Update variable that holds informations about this view's components loading state.
+   * If all components did load then change render state to "ready to render".
+   * Next render state (final one) will further handle loading.
+   *
+   */
+  private _updateLoadingState(
+    key: ActivityBarViewLoadingStateKeys,
+    value: boolean
+  ) {
+    this._loadingState[key] = value;
+    let isLoading = false;
+    for (const key in this._loadingState) {
+      const element =
+        this._loadingState[key as ActivityBarViewLoadingStateKeys];
+      if (element === true) {
+        isLoading = true;
+      }
+    }
+    if (isLoading === false) {
+      this._renderState = RENDER_STATE.VIEW_READY;
+    }
+  }
+
   private _setWebviewMessageListener(): void {
     let inputChangeWasNoted = false;
-
     // Webview messages.
     this._view.webview.onDidReceiveMessage(
       async (msg: any) => {
@@ -181,7 +209,7 @@ export class ActivityBarView implements vscode.Disposable {
     const repository: Repository | null =
       this._gitApi.getWorkspaceMainRepository();
     if (repository) {
-      this._renderState = RENDER_STATE.VIEW_READY;
+      this._updateLoadingState("gitRepositories", false);
     } else {
       this._renderState = RENDER_STATE.NO_REPO;
     }

@@ -1,9 +1,9 @@
 const vscode = acquireVsCodeApi();
-
 window.addEventListener("load", main);
 
 function main() {
   const searchInput = document.querySelector("#searchInput");
+  const body = document.querySelector("body");
 
   if (searchInput) {
     searchInput.addEventListener("input", searchInputOnChangeHandler);
@@ -20,6 +20,7 @@ function main() {
           searchInput.value = value;
           searchInput.dispatchEvent(new Event("input"));
         }
+        body.style.display = "flex";
         toggleEmptyInputInfo(value);
         break;
       case "newResults":

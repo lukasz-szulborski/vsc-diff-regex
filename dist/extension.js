@@ -824,6 +824,9 @@ class ActivityBarView {
         this._disposables = [];
         this._gitApi = gitExtensionApi_1.default.Instance;
         this._textEditorsDecorations = [];
+        this._loadingState = {
+            gitRepositories: true,
+        };
         this._extensionContext = extensionContext;
         this._view = webviewView;
         this._WebviewUriProvider = new Helpers_1.WebviewUriProvider(this._view.webview, this._extensionContext.extensionUri);
@@ -872,6 +875,25 @@ class ActivityBarView {
         return {
             enableScripts: true, // For UI Toolkit
         };
+    }
+    /**
+     * Update variable that holds informations about this view's components loading state.
+     * If all components did load then change render state to "ready to render".
+     * Next render state (final one) will further handle loading.
+     *
+     */
+    _updateLoadingState(key, value) {
+        this._loadingState[key] = value;
+        let isLoading = false;
+        for (const key in this._loadingState) {
+            const element = this._loadingState[key];
+            if (element === true) {
+                isLoading = true;
+            }
+        }
+        if (isLoading === false) {
+            this._renderState = RENDER_STATE.VIEW_READY;
+        }
     }
     _setWebviewMessageListener() {
         let inputChangeWasNoted = false;
@@ -936,7 +958,7 @@ class ActivityBarView {
         // @TODO: [roadmap] consider multiple workspaces
         const repository = this._gitApi.getWorkspaceMainRepository();
         if (repository) {
-            this._renderState = RENDER_STATE.VIEW_READY;
+            this._updateLoadingState("gitRepositories", false);
         }
         else {
             this._renderState = RENDER_STATE.NO_REPO;
@@ -1316,6 +1338,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(20), exports);
 __exportStar(__webpack_require__(21), exports);
 __exportStar(__webpack_require__(22), exports);
+__exportStar(__webpack_require__(23), exports);
 
 
 /***/ }),
@@ -1341,6 +1364,14 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 /* 22 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 23 */
 /***/ ((__unused_webpack_module, exports) => {
 
 

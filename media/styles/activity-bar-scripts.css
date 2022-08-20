@@ -1,3 +1,8 @@
+body {
+  display: none;
+  flex-direction: column;
+}
+
 .empty-search-input {
   display: none;
   margin-top: 10px;
