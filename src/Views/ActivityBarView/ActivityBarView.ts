@@ -25,6 +25,7 @@ export class ActivityBarView implements vscode.Disposable {
   private _disposables: vscode.Disposable[] = [];
   private _extensionContext: vscode.ExtensionContext;
   private _gitApi: GitApi = GitApi.Instance;
+  private _textEditorsDecorations: vscode.TextEditorDecorationType[] = [];
 
   constructor(
     extensionContext: vscode.ExtensionContext,
@@ -173,15 +174,6 @@ export class ActivityBarView implements vscode.Disposable {
       ),
       vscode.TextEditorRevealType.InCenter
     );
-
-    // @TODO: move to painting subroutine
-    // Highlight change occurances (using decorations).
-    const decoration = vscode.window.createTextEditorDecorationType({
-      backgroundColor: "red",
-    });
-    editor.setDecorations(decoration, [
-      new vscode.Range(new vscode.Position(20, 0), new vscode.Position(20, 40)),
-    ]);
   }
 
   private _handleGitApiInitialized(): void {
@@ -211,14 +203,19 @@ export class ActivityBarView implements vscode.Disposable {
   /**
    * Subroutine that is run on changes. Analyzes `git diff`, filters by current
    * regex search, repaints changes tree and decorated active editor.
+   *
+   * @TODO: rename: what does "apply changes" mean?
    */
   private async _applyChanges() {
     // If searched term does not exist then stop the routine.
     const searchInputValue = this._getSearchInputFromState;
+    const searchInputValueLength = searchInputValue
+      ? searchInputValue.length
+      : 0;
     if (
       !searchInputValue ||
       typeof searchInputValue !== "string" ||
-      searchInputValue.length === 0
+      searchInputValueLength === 0
     ) {
       return;
     }
@@ -300,6 +297,10 @@ export class ActivityBarView implements vscode.Disposable {
     // Get all visible to the user editors
     const editors = vscode.window.visibleTextEditors;
 
+    // Remove decorations from previous render.
+    this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
+    this._textEditorsDecorations = [];
+
     // Array of changed files' indices in `filteredChanges` array and lines to filter out (where changes doesn't contain searched term).
     const filteredChangesLinesToFilterOut: number[][] = [];
 
@@ -317,6 +318,7 @@ export class ActivityBarView implements vscode.Disposable {
       const changes = filteredChangesHashMap[changedFileFullPath];
 
       for (const changeLineNumber in changes) {
+        const changeLineNumberParsed = parseInt(changeLineNumber);
         const change = changes[changeLineNumber];
         let isModified = change.length === 2;
         let isPlainAdd = change.length === 1;
@@ -347,8 +349,8 @@ export class ActivityBarView implements vscode.Disposable {
         );
 
         let termFoundInChanges = false;
-          
-        originalToCurrentEditScript.operations.forEach((operation) => {
+
+        originalToCurrentEditScript.operations.forEach(async (operation) => {
           // Use only adds.
           if (operation.operation_type !== "Insert") {
             return;
@@ -356,18 +358,39 @@ export class ActivityBarView implements vscode.Disposable {
 
           // Find terms in edit script.
           const foundTerms = searchedTermRegex.exec(operation.content);
-          
+
           if (foundTerms && foundTerms[0]) {
             termFoundInChanges = true;
+
+            // Find terms in edit script and Extract positions.
+            const positionsToPaint = {
+              lineNumber: changeLineNumberParsed,
+              posStart: foundTerms.index + operation.pos_start,
+              posEnd:
+                foundTerms.index + operation.pos_start + foundTerms[0].length,
+              content: foundTerms[0],
+            };
+
+            // Create decoration.
+
+            const decoration = vscode.window.createTextEditorDecorationType({
+              backgroundColor: "green",
+              rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+            });
+            this._textEditorsDecorations.push(decoration);
+            editor.setDecorations(decoration, [
+              new vscode.Range(
+                new vscode.Position(
+                  changeLineNumberParsed,
+                  positionsToPaint.posStart
+                ),
+                new vscode.Position(
+                  changeLineNumberParsed,
+                  positionsToPaint.posEnd
+                )
+              ),
+            ]);
           }
-
-          // Find terms in edit script and Extract positions.
-
-          // Create decorations.
-          // ...
-
-          // Apply styles in found positions (vector or tuples (line, startCol, endCol)).
-          // ...
         });
 
         // If "add change" doesn't contain searched term then mark this line as irrelevant.
@@ -376,7 +399,7 @@ export class ActivityBarView implements vscode.Disposable {
         }
         if (!termFoundInChanges) {
           filteredChangesLinesToFilterOut[fileChangeIndex].push(
-            parseInt(changeLineNumber)
+            changeLineNumberParsed
           );
         }
       }

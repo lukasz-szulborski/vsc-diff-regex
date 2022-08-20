@@ -12,6 +12,11 @@ type RemodelParsedDiffConfig = {
   cleanDelChange?: boolean;
 };
 
+/* 
+
+@TODO: I don't like this class, please have a closer look later at what can be improved.
+ */
+
 export default class GitApi {
   private _vscExtension!: vscode.Extension<GitExtension>;
   private _vscGitExtension!: GitExtension;

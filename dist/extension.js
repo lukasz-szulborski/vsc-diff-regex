@@ -17,6 +17,10 @@ const vscode = __webpack_require__(1);
 const parseDiff = __webpack_require__(3);
 const path = __webpack_require__(4);
 const utils_1 = __webpack_require__(5);
+/*
+
+@TODO: I don't like this class, please have a closer look later at what can be improved.
+ */
 class GitApi {
     constructor() {
         try {
@@ -819,6 +823,7 @@ class ActivityBarView {
         this._renderState = RENDER_STATE.VIEW_LOADING;
         this._disposables = [];
         this._gitApi = gitExtensionApi_1.default.Instance;
+        this._textEditorsDecorations = [];
         this._extensionContext = extensionContext;
         this._view = webviewView;
         this._WebviewUriProvider = new Helpers_1.WebviewUriProvider(this._view.webview, this._extensionContext.extensionUri);
@@ -926,14 +931,6 @@ class ActivityBarView {
         const editor = await vscode.window.showTextDocument(doc);
         // Center at the position of the change.
         editor.revealRange(new vscode.Range(new vscode.Position(change.line, 0), new vscode.Position(change.line, 0)), vscode.TextEditorRevealType.InCenter);
-        // @TODO: move to painting subroutine
-        // Highlight change occurances (using decorations).
-        const decoration = vscode.window.createTextEditorDecorationType({
-            backgroundColor: "red",
-        });
-        editor.setDecorations(decoration, [
-            new vscode.Range(new vscode.Position(20, 0), new vscode.Position(20, 40)),
-        ]);
     }
     _handleGitApiInitialized() {
         // @TODO: [roadmap] consider multiple workspaces
@@ -960,13 +957,18 @@ class ActivityBarView {
     /**
      * Subroutine that is run on changes. Analyzes `git diff`, filters by current
      * regex search, repaints changes tree and decorated active editor.
+     *
+     * @TODO: rename: what does "apply changes" mean?
      */
     async _applyChanges() {
         // If searched term does not exist then stop the routine.
         const searchInputValue = this._getSearchInputFromState;
+        const searchInputValueLength = searchInputValue
+            ? searchInputValue.length
+            : 0;
         if (!searchInputValue ||
             typeof searchInputValue !== "string" ||
-            searchInputValue.length === 0) {
+            searchInputValueLength === 0) {
             return;
         }
         /*
@@ -1032,6 +1034,9 @@ class ActivityBarView {
         */
         // Get all visible to the user editors
         const editors = vscode.window.visibleTextEditors;
+        // Remove decorations from previous render.
+        this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
+        this._textEditorsDecorations = [];
         // Array of changed files' indices in `filteredChanges` array and lines to filter out (where changes doesn't contain searched term).
         const filteredChangesLinesToFilterOut = [];
         filteredChanges.forEach((fileChange, fileChangeIndex) => {
@@ -1044,6 +1049,7 @@ class ActivityBarView {
             // If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
             const changes = filteredChangesHashMap[changedFileFullPath];
             for (const changeLineNumber in changes) {
+                const changeLineNumberParsed = parseInt(changeLineNumber);
                 const change = changes[changeLineNumber];
                 let isModified = change.length === 2;
                 let isPlainAdd = change.length === 1;
@@ -1071,7 +1077,7 @@ class ActivityBarView {
                 }
                 const originalToCurrentEditScript = (0, utils_1.myersDiff)(originalContent, currentContent);
                 let termFoundInChanges = false;
-                originalToCurrentEditScript.operations.forEach((operation) => {
+                originalToCurrentEditScript.operations.forEach(async (operation) => {
                     // Use only adds.
                     if (operation.operation_type !== "Insert") {
                         return;
@@ -1080,19 +1086,30 @@ class ActivityBarView {
                     const foundTerms = searchedTermRegex.exec(operation.content);
                     if (foundTerms && foundTerms[0]) {
                         termFoundInChanges = true;
+                        // Find terms in edit script and Extract positions.
+                        const positionsToPaint = {
+                            lineNumber: changeLineNumberParsed,
+                            posStart: foundTerms.index + operation.pos_start,
+                            posEnd: foundTerms.index + operation.pos_start + foundTerms[0].length,
+                            content: foundTerms[0],
+                        };
+                        // Create decoration.
+                        const decoration = vscode.window.createTextEditorDecorationType({
+                            backgroundColor: "green",
+                            rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+                        });
+                        this._textEditorsDecorations.push(decoration);
+                        editor.setDecorations(decoration, [
+                            new vscode.Range(new vscode.Position(changeLineNumberParsed, positionsToPaint.posStart), new vscode.Position(changeLineNumberParsed, positionsToPaint.posEnd)),
+                        ]);
                     }
-                    // Find terms in edit script and Extract positions.
-                    // Create decorations.
-                    // ...
-                    // Apply styles in found positions (vector or tuples (line, startCol, endCol)).
-                    // ...
                 });
                 // If "add change" doesn't contain searched term then mark this line as irrelevant.
                 if (!filteredChangesLinesToFilterOut[fileChangeIndex]) {
                     filteredChangesLinesToFilterOut[fileChangeIndex] = [];
                 }
                 if (!termFoundInChanges) {
-                    filteredChangesLinesToFilterOut[fileChangeIndex].push(parseInt(changeLineNumber));
+                    filteredChangesLinesToFilterOut[fileChangeIndex].push(changeLineNumberParsed);
                 }
             }
         });
