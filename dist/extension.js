@@ -1055,8 +1055,6 @@ class ActivityBarView {
           * Find added positions in changed lines.
           * Decorate these positions.
         */
-        // Get all visible to the user editors
-        const editors = vscode.window.visibleTextEditors;
         // Remove decorations from previous render.
         this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
         this._textEditorsDecorations = [];
@@ -1064,10 +1062,11 @@ class ActivityBarView {
         const filteredChangesLinesToFilterOut = [];
         filteredChanges.forEach((fileChange, fileChangeIndex) => {
             const changedFileFullPath = fileChange.fullFilePath;
-            // For every changed file, try to find active editor.
-            const editor = editors.find((e) => e.document.uri.path.toLocaleLowerCase() ===
+            // 
+            // Get all visible editors && For every changed file, try to find active editor.
+            const editors = vscode.window.visibleTextEditors.filter((e) => e.document.uri.path.toLocaleLowerCase() ===
                 changedFileFullPath.toLocaleLowerCase());
-            if (!editor)
+            if (!editors || editors.length === 0)
                 return;
             // If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
             const changes = filteredChangesHashMap[changedFileFullPath];
@@ -1122,9 +1121,9 @@ class ActivityBarView {
                             rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
                         });
                         this._textEditorsDecorations.push(decoration);
-                        editor.setDecorations(decoration, [
+                        editors.forEach(editor => editor.setDecorations(decoration, [
                             new vscode.Range(new vscode.Position(changeLineNumberParsed, positionsToPaint.posStart), new vscode.Position(changeLineNumberParsed, positionsToPaint.posEnd)),
-                        ]);
+                        ]));
                     }
                 });
                 // If "add change" doesn't contain searched term then mark this line as irrelevant.

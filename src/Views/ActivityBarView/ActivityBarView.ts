@@ -322,9 +322,6 @@ export class ActivityBarView implements vscode.Disposable {
       * Decorate these positions.
     */
 
-    // Get all visible to the user editors
-    const editors = vscode.window.visibleTextEditors;
-
     // Remove decorations from previous render.
     this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
     this._textEditorsDecorations = [];
@@ -334,13 +331,14 @@ export class ActivityBarView implements vscode.Disposable {
 
     filteredChanges.forEach((fileChange, fileChangeIndex) => {
       const changedFileFullPath = fileChange.fullFilePath;
-      // For every changed file, try to find active editor.
-      const editor = editors.find(
+      // 
+      // Get all visible editors && For every changed file, try to find active editor.
+      const editors = vscode.window.visibleTextEditors.filter(
         (e) =>
           e.document.uri.path.toLocaleLowerCase() ===
           changedFileFullPath.toLocaleLowerCase()
       );
-      if (!editor) return;
+      if (!editors || editors.length === 0) return;
 
       // If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
       const changes = filteredChangesHashMap[changedFileFullPath];
@@ -406,7 +404,7 @@ export class ActivityBarView implements vscode.Disposable {
               rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
             });
             this._textEditorsDecorations.push(decoration);
-            editor.setDecorations(decoration, [
+            editors.forEach(editor => editor.setDecorations(decoration, [
               new vscode.Range(
                 new vscode.Position(
                   changeLineNumberParsed,
@@ -417,7 +415,7 @@ export class ActivityBarView implements vscode.Disposable {
                   positionsToPaint.posEnd
                 )
               ),
-            ]);
+            ]))
           }
         });
 
