@@ -54,6 +54,7 @@ class GitApi {
     }
     async parseDiff(config) {
         const configExists = config !== undefined;
+        // @TODO: DRY
         const includeUntracked = !configExists ||
             (configExists &&
                 (config.includeUntracked === undefined ||
@@ -166,7 +167,7 @@ class GitApi {
             let workspacePath = vscode.workspace.workspaceFolders[0].uri.path;
             workspacePath = workspacePath.replace(/^\//g, "");
             // Exec command.
-            const commandResult = await (0, utils_1.asyncExec)(`git -C ${workspacePath} ls-files -o --exclude-standard`);
+            const commandResult = await (0, utils_1.asyncExec)(`git -C "${workspacePath}" ls-files -o --exclude-standard`);
             // Get untracked files paths from command result string.
             const filePaths = commandResult
                 .trim()

@@ -58,6 +58,7 @@ export default class GitApi {
     config?: RemodelParsedDiffConfig
   ): Promise<RepositoryFileChange[]> {
     const configExists = config !== undefined;
+    // @TODO: DRY
     const includeUntracked =
       !configExists ||
       (configExists &&
@@ -191,7 +192,7 @@ export default class GitApi {
       workspacePath = workspacePath.replace(/^\//g, "");
       // Exec command.
       const commandResult: string = await asyncExec(
-        `git -C ${workspacePath} ls-files -o --exclude-standard`
+        `git -C "${workspacePath}" ls-files -o --exclude-standard`
       );
 
       // Get untracked files paths from command result string.
