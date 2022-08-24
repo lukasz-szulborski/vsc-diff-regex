@@ -231,6 +231,7 @@ export class ActivityBarView implements vscode.Disposable {
    * regex search, repaints changes tree and decorated active editor.
    *
    * @TODO: rename: what does "apply changes" mean?
+   * @TODO: refactor
    */
   private async _applyChanges() {
     // If searched term does not exist then stop the routine.
@@ -263,9 +264,13 @@ export class ActivityBarView implements vscode.Disposable {
     diff.forEach((changedFile) => {
       let newIndex: undefined | number = undefined;
       changedFile.changes.forEach((fileChange) => {
+        /*
+          @NOTE: in future make it a changeable option. This is possible that someone will want to use regexp in context of whole line.
+          Also @NOTE that letting all lines in may introduce some computation overhead, monitior this part of the code when some performance problems arise in the future.
+        */
         if (
-          (fileChange.type === "add" &&
-            fileChange.content.match(searchedTermRegex) !== null) ||
+          fileChange.type === "add" /*&&
+            fileChange.content.match(searchedTermRegex) !== null*/ ||
           fileChange.type === "del"
         ) {
           // Create different object types for changed files. Later it will be easier to reason about this changed files.
@@ -377,11 +382,9 @@ export class ActivityBarView implements vscode.Disposable {
 
             // Find terms in edit script and Extract positions.
             const positionsToPaint = {
-              lineNumber: changeLineNumberParsed,
               posStart: foundTerms.index + operation.pos_start,
               posEnd:
                 foundTerms.index + operation.pos_start + foundTerms[0].length,
-              content: foundTerms[0],
             };
 
             // Create decoration.
