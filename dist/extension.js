@@ -1061,8 +1061,6 @@ class ActivityBarView {
             // Get all visible editors && For every changed file, try to find active editor.
             const editors = vscode.window.visibleTextEditors.filter((e) => e.document.uri.path.toLocaleLowerCase() ===
                 changedFileFullPath.toLocaleLowerCase());
-            if (!editors || editors.length === 0)
-                return;
             // If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
             const changes = filteredChangesHashMap[changedFileFullPath];
             for (const changeLineNumber in changes) {

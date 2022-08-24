@@ -330,7 +330,6 @@ export class ActivityBarView implements vscode.Disposable {
           e.document.uri.path.toLocaleLowerCase() ===
           changedFileFullPath.toLocaleLowerCase()
       );
-      if (!editors || editors.length === 0) return;
 
       // If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
       const changes = filteredChangesHashMap[changedFileFullPath];
