@@ -936,11 +936,9 @@ class ActivityBarView {
         if (value !== currentValue || force) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
         }
-        if (value && value.length !== 0) {
-            // @NOTE: if UI lags, do not await
-            // Always when input was changed, check for new search results.
-            await this._applyChanges();
-        }
+        // @NOTE: if UI lags, do not await
+        // Always when input was changed, check for new search results.
+        await this._applyChanges();
     }
     /**
      * Open text document in an editor.
@@ -986,14 +984,6 @@ class ActivityBarView {
     async _applyChanges() {
         // If searched term does not exist then stop the routine.
         const searchInputValue = this._getSearchInputFromState;
-        const searchInputValueLength = searchInputValue
-            ? searchInputValue.length
-            : 0;
-        if (!searchInputValue ||
-            typeof searchInputValue !== "string" ||
-            searchInputValueLength === 0) {
-            return;
-        }
         /*
           -----
           -- PARSING SUBROUTINE
@@ -1012,7 +1002,7 @@ class ActivityBarView {
         const filteredChanges = [];
         // Containing filtered changes (File name -> change line -> change) Hash map. Index to process changes within a single line easier.
         const filteredChangesHashMap = {};
-        const searchedTermRegex = new RegExp(searchInputValue);
+        const searchedTermRegex = new RegExp(searchInputValue ?? "");
         diff.forEach((changedFile) => {
             let newIndex = undefined;
             changedFile.changes.forEach((fileChange) => {
@@ -1062,7 +1052,6 @@ class ActivityBarView {
         const filteredChangesLinesToFilterOut = [];
         filteredChanges.forEach((fileChange, fileChangeIndex) => {
             const changedFileFullPath = fileChange.fullFilePath;
-            // 
             // Get all visible editors && For every changed file, try to find active editor.
             const editors = vscode.window.visibleTextEditors.filter((e) => e.document.uri.path.toLocaleLowerCase() ===
                 changedFileFullPath.toLocaleLowerCase());
@@ -1121,7 +1110,7 @@ class ActivityBarView {
                             rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
                         });
                         this._textEditorsDecorations.push(decoration);
-                        editors.forEach(editor => editor.setDecorations(decoration, [
+                        editors.forEach((editor) => editor.setDecorations(decoration, [
                             new vscode.Range(new vscode.Position(changeLineNumberParsed, positionsToPaint.posStart), new vscode.Position(changeLineNumberParsed, positionsToPaint.posEnd)),
                         ]));
                     }

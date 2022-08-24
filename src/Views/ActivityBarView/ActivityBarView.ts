@@ -177,11 +177,9 @@ export class ActivityBarView implements vscode.Disposable {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
     }
 
-    if (value && value.length !== 0) {
-      // @NOTE: if UI lags, do not await
-      // Always when input was changed, check for new search results.
-      await this._applyChanges();
-    }
+    // @NOTE: if UI lags, do not await
+    // Always when input was changed, check for new search results.
+    await this._applyChanges();
   }
 
   /**
@@ -237,16 +235,6 @@ export class ActivityBarView implements vscode.Disposable {
   private async _applyChanges() {
     // If searched term does not exist then stop the routine.
     const searchInputValue = this._getSearchInputFromState;
-    const searchInputValueLength = searchInputValue
-      ? searchInputValue.length
-      : 0;
-    if (
-      !searchInputValue ||
-      typeof searchInputValue !== "string" ||
-      searchInputValueLength === 0
-    ) {
-      return;
-    }
 
     /* 
       -----
@@ -271,7 +259,7 @@ export class ActivityBarView implements vscode.Disposable {
       string,
       Record<number, LineChange[]>
     > = {};
-    const searchedTermRegex = new RegExp(searchInputValue);
+    const searchedTermRegex = new RegExp(searchInputValue ?? "");
     diff.forEach((changedFile) => {
       let newIndex: undefined | number = undefined;
       changedFile.changes.forEach((fileChange) => {
@@ -331,7 +319,6 @@ export class ActivityBarView implements vscode.Disposable {
 
     filteredChanges.forEach((fileChange, fileChangeIndex) => {
       const changedFileFullPath = fileChange.fullFilePath;
-      // 
       // Get all visible editors && For every changed file, try to find active editor.
       const editors = vscode.window.visibleTextEditors.filter(
         (e) =>
@@ -404,18 +391,20 @@ export class ActivityBarView implements vscode.Disposable {
               rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
             });
             this._textEditorsDecorations.push(decoration);
-            editors.forEach(editor => editor.setDecorations(decoration, [
-              new vscode.Range(
-                new vscode.Position(
-                  changeLineNumberParsed,
-                  positionsToPaint.posStart
+            editors.forEach((editor) =>
+              editor.setDecorations(decoration, [
+                new vscode.Range(
+                  new vscode.Position(
+                    changeLineNumberParsed,
+                    positionsToPaint.posStart
+                  ),
+                  new vscode.Position(
+                    changeLineNumberParsed,
+                    positionsToPaint.posEnd
+                  )
                 ),
-                new vscode.Position(
-                  changeLineNumberParsed,
-                  positionsToPaint.posEnd
-                )
-              ),
-            ]))
+              ])
+            );
           }
         });
 
