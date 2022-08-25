@@ -175,7 +175,6 @@ export default class GitApi {
   private async diffToObject(): Promise<RepositoryDiffObject | undefined> {
     const repository = this.getWorkspaceMainRepository();
     if (repository) {
-      console.log(await repository.diff())
       const result = parseDiff(await repository.diff());
       return {
         diffs: result,
