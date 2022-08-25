@@ -76,6 +76,7 @@ export default class GitApi {
           config.cleanDelChange === true));
 
     const parsedDiff = await this.diffToObject();
+
     const results: RepositoryFileChange[] = [];
 
     // Include changes from `git diff`
@@ -83,38 +84,42 @@ export default class GitApi {
       parsedDiff.diffs.forEach((file, i) => {
         const parsedChangedFile: RepositoryFileChange = {
           changes: file.chunks.flatMap((chunk) => {
-            return chunk.changes.map((change) => {
-              if (this.isParseDiffChangeAdd(change)) {
-                return {
-                  line: change.ln - 1,
-                  content: cleanAddChange
-                    ? change.content
-                        .replace(/^\+/g, "")
-                        // .replace(/^( |\t)*/g, "")
-                    : change.content,
-                  type: "add",
-                  isVisible: true,
-                };
-              } else if (this.isParseDiffChangeDelete(change)) {
-                return {
-                  line: change.ln - 1,
-                  content: cleanDelChange
-                    ? change.content
-                        .replace(/^\-/g, "")
-                        // .replace(/^( |\t)*/g, "")
-                    : change.content,
-                  type: "del",
-                  isVisible: false,
-                };
-              } else {
-                return {
-                  line: change.ln1 - 1,
-                  content: change.content,
-                  type: "normal",
-                  isVisible: false,
-                };
-              }
-            });
+            return chunk.changes
+              .filter(
+                (change) =>
+                  this.isParseDiffChangeAdd(change) &&
+                  change.content !== `\\ No newline at end of file`
+              )
+              .map((change) => {
+                if (this.isParseDiffChangeAdd(change)) {
+                  return {
+                    line: change.ln - 1,
+                    content: cleanAddChange
+                      ? change.content.replace(/^\+/g, "")
+                      : // .replace(/^( |\t)*/g, "")
+                        change.content,
+                    type: "add",
+                    isVisible: true,
+                  };
+                } else if (this.isParseDiffChangeDelete(change)) {
+                  return {
+                    line: change.ln - 1,
+                    content: cleanDelChange
+                      ? change.content.replace(/^\-/g, "")
+                      : // .replace(/^( |\t)*/g, "")
+                        change.content,
+                    type: "del",
+                    isVisible: false,
+                  };
+                } else {
+                  return {
+                    line: change.ln1 - 1,
+                    content: change.content,
+                    type: "normal",
+                    isVisible: false,
+                  };
+                }
+              });
           }),
           // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
           filePath: file.from!,
@@ -170,6 +175,7 @@ export default class GitApi {
   private async diffToObject(): Promise<RepositoryDiffObject | undefined> {
     const repository = this.getWorkspaceMainRepository();
     if (repository) {
+      console.log(await repository.diff())
       const result = parseDiff(await repository.diff());
       return {
         diffs: result,
