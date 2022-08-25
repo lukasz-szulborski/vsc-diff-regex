@@ -54,15 +54,17 @@ export class ActivityBarView implements vscode.Disposable {
       await this._applyChanges();
     });
 
-    // Changing tabs.
-    const closeListener = vscode.workspace.onDidOpenTextDocument(async () => {
-      // @TODO:
-      // [X] Listen for new tab open.
-      // [X] Repaint searched term decorations.
-      // [ ] Check if it works for re-opening closed tabs
-      // [ ] Check if it works po splitting into new tab.
+    const closeListener = vscode.window.onDidChangeVisibleTextEditors(async () => {
+      /*
+        Works for: 
+          [X] Listen for new tab open.
+          [X] Repaint searched term decorations.
+          [X] Check if it works for re-opening closed tabs
+          [X] Check if it works po splitting into new tab.
+      */ 
       await this._applyChanges();
-    });
+    })
+  
     this._disposables.push(saveListener, closeListener);
 
     // Clean disposables.
