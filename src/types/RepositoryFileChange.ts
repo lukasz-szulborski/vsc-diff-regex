@@ -23,3 +23,8 @@ export interface RepositoryDiffObject {
   diffs: parseDiff.File[];
   repository: Repository;
 }
+
+export type FilenameLineChangeHashMap = Record<
+  string,
+  Record<number, LineChange[]>
+>;

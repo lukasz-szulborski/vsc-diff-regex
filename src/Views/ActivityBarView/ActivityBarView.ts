@@ -5,6 +5,7 @@ import { WebviewUriProvider } from "../../Helpers";
 import {
   ActivityBarViewLoadingState,
   ActivityBarViewLoadingStateKeys,
+  FilenameLineChangeHashMap,
   LineChange,
   RepositoryFileChange,
   WorkspaceStateKeys,
@@ -50,22 +51,36 @@ export class ActivityBarView implements vscode.Disposable {
     this._setWebviewMessageListener();
 
     // Listen for text document save.
-    const saveListener = vscode.workspace.onDidSaveTextDocument(async () => {
-      await this._applyChanges();
-    });
+    vscode.workspace.onDidSaveTextDocument(
+      async () => {
+        await this._applyChanges();
+      },
+      undefined,
+      this._disposables
+    );
 
-    const closeListener = vscode.window.onDidChangeVisibleTextEditors(async () => {
-      /*
+    vscode.workspace.onDidChangeTextDocument(
+      async () => {
+        console.log("keystroke");
+      },
+      undefined,
+      this._disposables
+    );
+
+    vscode.window.onDidChangeVisibleTextEditors(
+      async () => {
+        /*
         Works for: 
           [X] Listen for new tab open.
           [X] Repaint searched term decorations.
           [X] Check if it works for re-opening closed tabs
           [X] Check if it works po splitting into new tab.
-      */ 
-      await this._applyChanges();
-    })
-  
-    this._disposables.push(saveListener, closeListener);
+      */
+        await this._applyChanges();
+      },
+      undefined,
+      this._disposables
+    );
 
     // Clean disposables.
     this._view.onDidDispose(this.dispose, undefined, this._disposables);
@@ -248,7 +263,7 @@ export class ActivityBarView implements vscode.Disposable {
 
       Whole process consists of several steps. 
       * Parse "git diff" (text -> array of javascript objects)
-      * Filter only "add" and "delete" changes. Also keep only these lines where searched term can be found anywhere inside line (even if searched term is not "add" change). Also index changes by file path and line numbers.
+      * Filter only "add" and "delete" changes. Also index changes by file path and line numbers.
       * Now, first phase of parsing is done. We have javascript objects that facilitate further manipulations.
     */
 
@@ -258,10 +273,7 @@ export class ActivityBarView implements vscode.Disposable {
     // Filter with saved regex term.
     const filteredChanges: RepositoryFileChange[] = [];
     // Containing filtered changes (File name -> change line -> change) Hash map. Index to process changes within a single line easier.
-    const filteredChangesHashMap: Record<
-      string,
-      Record<number, LineChange[]>
-    > = {};
+    const filteredChangesHashMap: FilenameLineChangeHashMap = {};
     const searchedTermRegex = new RegExp(searchInputValue ?? "");
     diff.forEach((changedFile) => {
       let newIndex: undefined | number = undefined;
@@ -281,7 +293,7 @@ export class ActivityBarView implements vscode.Disposable {
             newIndex =
               filteredChanges.push({
                 filePath: changedFile.filePath,
-                fileName: filenameFromPath(changedFile.filePath),
+                fileName: changedFile.fileName,
                 fullFilePath: changedFile.fullFilePath,
                 changes: [fileChange],
               }) - 1;
@@ -333,10 +345,15 @@ export class ActivityBarView implements vscode.Disposable {
           changedFileFullPath.toLocaleLowerCase()
       );
 
-      // If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
+      /*
+        If active editor with changes exist, get changed lines for this editor and find out what changed on a line level using some kind of LCS algorithm. After line changes are found filter them further to leave only positions that match with a searched term.
+      */
       const changes = filteredChangesHashMap[changedFileFullPath];
 
       for (const changeLineNumber in changes) {
+        /*
+          This loop is only concerned with changes within a single line. Thus we can conclude whether we're dealing with insertion or modification.
+        */
         const changeLineNumberParsed = parseInt(changeLineNumber);
         const change = changes[changeLineNumber];
         let isModified = change.length === 2;
@@ -383,6 +400,7 @@ export class ActivityBarView implements vscode.Disposable {
 
             // Find terms in edit script and Extract positions.
             const positionsToPaint = {
+              content: currentContent,
               posStart: foundTerms.index + operation.pos_start,
               posEnd:
                 foundTerms.index + operation.pos_start + foundTerms[0].length,
