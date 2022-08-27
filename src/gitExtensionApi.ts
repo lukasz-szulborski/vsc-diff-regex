@@ -86,9 +86,7 @@ export default class GitApi {
           changes: file.chunks.flatMap((chunk) => {
             return chunk.changes
               .filter(
-                (change) =>
-                  this.isParseDiffChangeAdd(change) &&
-                  change.content !== `\\ No newline at end of file`
+                (change) => change.content !== `\\ No newline at end of file`
               )
               .map((change) => {
                 if (this.isParseDiffChangeAdd(change)) {
