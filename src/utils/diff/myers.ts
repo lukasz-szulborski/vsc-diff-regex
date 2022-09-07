@@ -1,36 +1,25 @@
+import {
+  CordsDiff,
+  EditScriptOperation,
+  EditScriptRecovery,
+} from "../../types";
+
 type cords = [number, number];
 
 type edit_operation = "Insert" | "Delete";
-
-type edit_script_operation = {
-  pos_start: number;
-  pos_end: number;
-  operation_type: edit_operation;
-  content: string;
-};
-
-type edit_script_recovery = {
-  operations: edit_script_operation[];
-  is_invalid_path: boolean;
-};
-
-type cords_diff = {
-  x_delta: number;
-  y_delta: number;
-};
 
 const print_operation = ({
   content,
   operation_type,
   pos_end,
   pos_start,
-}: edit_script_operation) => {
+}: EditScriptOperation) => {
   console.log(
     `{\n\tpos_start: ${pos_start}\n\tpos_end: ${pos_end}\n\toperation_type: ${operation_type}\n\tcontent: ${content}\n}\n`
   );
 };
 
-const get_cords_diff = (a_cords: cords, b_cords: cords): cords_diff => ({
+const get_CordsDiff = (a_cords: cords, b_cords: cords): CordsDiff => ({
   x_delta: Math.abs(a_cords[0] - b_cords[0]),
   y_delta: Math.abs(a_cords[1] - b_cords[1]),
 });
@@ -44,7 +33,7 @@ const get_operation_between_cords = (
   a_cords: cords,
   b_cords: cords
 ): edit_operation => {
-  let { x_delta, y_delta } = get_cords_diff(a_cords, b_cords);
+  let { x_delta, y_delta } = get_CordsDiff(a_cords, b_cords);
   if (y_delta > x_delta) {
     return "Insert";
   } else {
@@ -52,12 +41,8 @@ const get_operation_between_cords = (
   }
 };
 
-const are_cords_non_negative = (cords: cords): boolean => {
-  if (cords[0] >= 0 && cords[1] >= 0) {
-    return true;
-  }
-  return false;
-};
+const are_cords_non_negative = (cords: cords): boolean =>
+  cords[0] >= 0 && cords[1] >= 0;
 
 /*
  * Check if first cord is smaller or equal.
@@ -115,7 +100,7 @@ const is_step_distance_valid = (
 ): boolean => {
   const [a_x, a_y] = a_cords;
   const [b_x, b_y] = b_cords;
-  const d = get_cords_diff(a_cords, b_cords);
+  const d = get_CordsDiff(a_cords, b_cords);
   if (is_smaller_or_eq(b_cords, a_cords) === false) {
     return false;
   } else if (
@@ -195,13 +180,13 @@ const recover_single_move = (
   str1: string,
   str2: string,
   current_cords: cords,
-  edit_graph: edit_script_operation[],
+  edit_graph: EditScriptOperation[],
   aux_function: (...args: any) => any,
   history: number[][],
   is_out_of_bound: boolean,
   shifted_k: number,
   k: number
-): edit_script_recovery => {
+): EditScriptRecovery => {
   const len1 = str1.length;
   const len2 = str2.length;
   if (is_out_of_bound === false) {
@@ -237,7 +222,7 @@ const recover_single_move = (
         operation_type === "Insert"
           ? str2[start_position]
           : str1[start_position];
-      const move: edit_script_operation = {
+      const move: EditScriptOperation = {
         pos_start: start_position,
         pos_end: should_concat ? last_move.pos_end : end_position,
         operation_type: operation_type,
@@ -366,13 +351,13 @@ export const myersDiff = (str1: string, str2: string) => {
     return go(0, history);
   };
   // Basing on list of snapshots of v-array (obtained in traverse_edit_graph) create an optimal edit script.
-  const recover_edit_script = (history: number[][]): edit_script_recovery => {
+  const recover_edit_script = (history: number[][]): EditScriptRecovery => {
     const aux = (
       history: number[][],
       current_k_diag: number,
       invalid_path: boolean,
-      edit_graph: edit_script_operation[]
-    ): edit_script_recovery => {
+      edit_graph: EditScriptOperation[]
+    ): EditScriptRecovery => {
       const shifted_k = current_k_diag + nm; // Adjust to array indexing. Array indices cannot be negative.
       const history_len = history.length;
       if (history_len <= 1) {

@@ -2,6 +2,7 @@ import * as parseDiff from "parse-diff";
 
 import { Repository } from "../../declarations/git";
 import { Filename } from "./Filename";
+import { FilenameLineHashMap } from "./TextFiles";
 
 type LineChangeType = "normal" | "add" | "del";
 
@@ -24,7 +25,4 @@ export interface RepositoryDiffObject {
   repository: Repository;
 }
 
-export type FilenameLineChangeHashMap = Record<
-  string,
-  Record<number, LineChange[]>
->;
+export type FilenameLineChangesHashMap = FilenameLineHashMap<LineChange[]>;
