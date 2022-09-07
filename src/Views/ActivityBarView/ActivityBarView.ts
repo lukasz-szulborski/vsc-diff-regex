@@ -56,7 +56,8 @@ export class ActivityBarView implements vscode.Disposable {
     // Listen for text document save.
     vscode.workspace.onDidSaveTextDocument(
       async () => {
-        await this._getChangedPositionsPerFile();
+        const changes = await this._getFilesChanges();
+        this._postChangesToWebview(changes[1]);
       },
       undefined,
       this._disposables
@@ -64,7 +65,7 @@ export class ActivityBarView implements vscode.Disposable {
 
     vscode.workspace.onDidChangeTextDocument(
       async () => {
-        // @TODO: Paint changes.
+        // @TODO: Paint only changes.
         console.log("keystroke");
       },
       undefined,
@@ -81,7 +82,7 @@ export class ActivityBarView implements vscode.Disposable {
           [X] Check if it works po splitting into new tab.
       */
         // @TODO: Paint decorations only.
-        await this._getChangedPositionsPerFile();
+        await this._getFilesChanges();
       },
       undefined,
       this._disposables
@@ -160,7 +161,8 @@ export class ActivityBarView implements vscode.Disposable {
             inputChangeWasNoted = true;
             break;
           case "ActivityBarViewDidLoad":
-            this._loadDataFromLocalStorage();
+            const searchedTerm = this._getSearchInputFromState;
+            this._postSearchInputValueToWebview(searchedTerm);
             break;
           case "changeClick":
             const { fullFilePath, change } = msg;
@@ -182,12 +184,14 @@ export class ActivityBarView implements vscode.Disposable {
     );
   }
 
-  private get _getSearchInputFromState(): string | undefined {
+  private get _getSearchInputFromState(): string | null {
     const { workspaceState } = this._extensionContext;
     const currentValue = workspaceState.get(
       WorkspaceStateKeys.ABV_SEARCH_INPUT
     ) as string;
-    if (!currentValue) return undefined;
+    if (!currentValue) {
+      return null;
+    }
     return currentValue;
   }
 
@@ -203,9 +207,9 @@ export class ActivityBarView implements vscode.Disposable {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
     }
 
-    // @NOTE: if UI lags, do not await
     // Always when input was changed, check for new search results.
-    await this._getChangedPositionsPerFile();
+    const changes = await this._getFilesChanges();
+    this._postChangesToWebview(changes[1]);
   }
 
   /**
@@ -241,14 +245,20 @@ export class ActivityBarView implements vscode.Disposable {
   }
 
   /**
-   * Loads data from extenstion storage to the view.
+   * Loads data from extenstion's storage to the web view.
    */
-  private _loadDataFromLocalStorage(): void {
+  private _postSearchInputValueToWebview(term: string | null): void {
     // Load search input content.
-    const searchInputValue = this._getSearchInputFromState;
     this._view.webview.postMessage({
       command: "setSearchInputValue",
-      value: searchInputValue ?? "",
+      value: term ?? "",
+    });
+  }
+
+  private _postChangesToWebview(changes: RepositoryFileChange[]): void {
+    this._view.webview.postMessage({
+      command: "newResults",
+      matches: changes,
     });
   }
 
@@ -372,32 +382,44 @@ export class ActivityBarView implements vscode.Disposable {
         });
         this._textEditorsDecorations.push(decoration);
         editors.forEach((editor) => {
-          /*
-            Check whether current content of the document at changed line is equal to passed change position content.
-            We do this to prevent painting decoration that are irrelevant.
-          */
-          const currentEditorLine = editor.document.lineAt(parsedFileLine);
-          console.log({ currentEditorLine });
-          positionChange.forEach((change) =>
-            editor.setDecorations(decoration, [
-              new vscode.Range(
-                new vscode.Position(parsedFileLine, change.posStart),
-                new vscode.Position(parsedFileLine, change.posEnd)
-              ),
-            ])
-          );
+          const editorLine = editor.document.lineAt(parsedFileLine);
+          positionChange.forEach((change) => {
+            /*
+              @TODO:
+              Check whether current content of the document at changed line is equal to passed change position content.
+              We do this to prevent painting decoration that are irrelevant.
+            */
+            const getChangeContentAtPosition = (s: string): string =>
+              s.slice(change.posStart, change.posEnd);
+
+            const changeChunkAlone = getChangeContentAtPosition(change.content);
+            const editorChunkAlone = getChangeContentAtPosition(
+              editorLine.text
+            );
+
+            if (changeChunkAlone === editorChunkAlone) {
+              editor.setDecorations(decoration, [
+                new vscode.Range(
+                  new vscode.Position(parsedFileLine, change.posStart),
+                  new vscode.Position(parsedFileLine, change.posEnd)
+                ),
+              ]);
+            }
+          });
         });
       }
     }
   }
 
   /**
-   * Function that is run on file content changes or searched term changes.
+   * Function that should be run on file content changes or searched term changes.
    * Analyzes `git diff`, filters by current regex search.
    *
    * @TODO: refactor
    */
-  private async _getChangedPositionsPerFile(): Promise<FilenameLineTextEditorPositionHashMap> {
+  private async _getFilesChanges(): Promise<
+    [FilenameLineTextEditorPositionHashMap, RepositoryFileChange[]]
+  > {
     const searchInputValue = this._getSearchInputFromState;
 
     /* 
@@ -493,7 +515,7 @@ export class ActivityBarView implements vscode.Disposable {
       });
 
     // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
-    const fullyFilteredChanges: typeof filteredChanges = filteredChanges.map(
+    const fullyFilteredChanges: RepositoryFileChange[] = filteredChanges.map(
       (fileChange) => {
         const linesToRemove =
           changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
@@ -511,19 +533,19 @@ export class ActivityBarView implements vscode.Disposable {
         return updatedFileChange;
       }
     );
-    
+
     // @TODO: insert callback hook "onChangesReady"
-    this._view.webview.postMessage({
-      command: "newResults",
-      matches: fullyFilteredChanges,
-    });
+    // this._view.webview.postMessage({
+    //   command: "newResults",
+    //   matches: fullyFilteredChanges,
+    // });
 
     // @TODO: "onChangedPositionsReady"
     this._paintDecorationsInTextEditors(
       editorPositionsFromFilenameLineChangeHashMap
     );
 
-    return editorPositionsFromFilenameLineChangeHashMap;
+    return [editorPositionsFromFilenameLineChangeHashMap, fullyFilteredChanges];
   }
 
   /**

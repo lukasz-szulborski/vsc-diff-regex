@@ -831,10 +831,11 @@ class ActivityBarView {
         this._setWebviewMessageListener();
         // Listen for text document save.
         vscode.workspace.onDidSaveTextDocument(async () => {
-            await this._getChangedPositionsPerFile();
+            const changes = await this._getFilesChanges();
+            this._postChangesToWebview(changes[1]);
         }, undefined, this._disposables);
         vscode.workspace.onDidChangeTextDocument(async () => {
-            // @TODO: Paint changes.
+            // @TODO: Paint only changes.
             console.log("keystroke");
         }, undefined, this._disposables);
         vscode.window.onDidChangeVisibleTextEditors(async () => {
@@ -846,7 +847,7 @@ class ActivityBarView {
               [X] Check if it works po splitting into new tab.
           */
             // @TODO: Paint decorations only.
-            await this._getChangedPositionsPerFile();
+            await this._getFilesChanges();
         }, undefined, this._disposables);
         // Clean disposables.
         this._view.onDidDispose(this.dispose, undefined, this._disposables);
@@ -911,7 +912,8 @@ class ActivityBarView {
                     inputChangeWasNoted = true;
                     break;
                 case "ActivityBarViewDidLoad":
-                    this._loadDataFromLocalStorage();
+                    const searchedTerm = this._getSearchInputFromState;
+                    this._postSearchInputValueToWebview(searchedTerm);
                     break;
                 case "changeClick":
                     const { fullFilePath, change } = msg;
@@ -928,8 +930,9 @@ class ActivityBarView {
     get _getSearchInputFromState() {
         const { workspaceState } = this._extensionContext;
         const currentValue = workspaceState.get(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT);
-        if (!currentValue)
-            return undefined;
+        if (!currentValue) {
+            return null;
+        }
         return currentValue;
     }
     async _handleSearchInputChange(value, force = false) {
@@ -940,9 +943,9 @@ class ActivityBarView {
         if (value !== currentValue || force) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
         }
-        // @NOTE: if UI lags, do not await
         // Always when input was changed, check for new search results.
-        await this._getChangedPositionsPerFile();
+        const changes = await this._getFilesChanges();
+        this._postChangesToWebview(changes[1]);
     }
     /**
      * Open text document in an editor.
@@ -969,14 +972,19 @@ class ActivityBarView {
         this._renderView();
     }
     /**
-     * Loads data from extenstion storage to the view.
+     * Loads data from extenstion's storage to the web view.
      */
-    _loadDataFromLocalStorage() {
+    _postSearchInputValueToWebview(term) {
         // Load search input content.
-        const searchInputValue = this._getSearchInputFromState;
         this._view.webview.postMessage({
             command: "setSearchInputValue",
-            value: searchInputValue ?? "",
+            value: term ?? "",
+        });
+    }
+    _postChangesToWebview(changes) {
+        this._view.webview.postMessage({
+            command: "newResults",
+            matches: changes,
         });
     }
     _getEditorPositionsFromFilenameLineChangeHashMap({ changesHashMap, searchedTerm, onLineChangeEncountered, }) {
@@ -1074,26 +1082,33 @@ class ActivityBarView {
                 });
                 this._textEditorsDecorations.push(decoration);
                 editors.forEach((editor) => {
-                    /*
-                      Check whether current content of the document at changed line is equal to passed change position content.
-                      We do this to prevent painting decoration that are irrelevant.
-                    */
-                    const currentEditorLine = editor.document.lineAt(parsedFileLine);
-                    console.log({ currentEditorLine });
-                    positionChange.forEach((change) => editor.setDecorations(decoration, [
-                        new vscode.Range(new vscode.Position(parsedFileLine, change.posStart), new vscode.Position(parsedFileLine, change.posEnd)),
-                    ]));
+                    const editorLine = editor.document.lineAt(parsedFileLine);
+                    positionChange.forEach((change) => {
+                        /*
+                          @TODO:
+                          Check whether current content of the document at changed line is equal to passed change position content.
+                          We do this to prevent painting decoration that are irrelevant.
+                        */
+                        const getChangeContentAtPosition = (s) => s.slice(change.posStart, change.posEnd);
+                        const changeChunkAlone = getChangeContentAtPosition(change.content);
+                        const editorChunkAlone = getChangeContentAtPosition(editorLine.text);
+                        if (changeChunkAlone === editorChunkAlone) {
+                            editor.setDecorations(decoration, [
+                                new vscode.Range(new vscode.Position(parsedFileLine, change.posStart), new vscode.Position(parsedFileLine, change.posEnd)),
+                            ]);
+                        }
+                    });
                 });
             }
         }
     }
     /**
-     * Function that is run on file content changes or searched term changes.
+     * Function that should be run on file content changes or searched term changes.
      * Analyzes `git diff`, filters by current regex search.
      *
      * @TODO: refactor
      */
-    async _getChangedPositionsPerFile() {
+    async _getFilesChanges() {
         const searchInputValue = this._getSearchInputFromState;
         /*
           -----
@@ -1189,13 +1204,13 @@ class ActivityBarView {
             return updatedFileChange;
         });
         // @TODO: insert callback hook "onChangesReady"
-        this._view.webview.postMessage({
-            command: "newResults",
-            matches: fullyFilteredChanges,
-        });
+        // this._view.webview.postMessage({
+        //   command: "newResults",
+        //   matches: fullyFilteredChanges,
+        // });
         // @TODO: "onChangedPositionsReady"
         this._paintDecorationsInTextEditors(editorPositionsFromFilenameLineChangeHashMap);
-        return editorPositionsFromFilenameLineChangeHashMap;
+        return [editorPositionsFromFilenameLineChangeHashMap, fullyFilteredChanges];
     }
     /**
      * Generate Webview HTML basing on current View state.
