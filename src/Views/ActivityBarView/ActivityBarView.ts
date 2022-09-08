@@ -340,21 +340,30 @@ export class ActivityBarView implements vscode.Disposable {
           }
 
           // Find terms in edit script.
-          const foundTerms = searchedTerm.exec(operation.content);
+          // const foundTerms = searchedTerm.exec(operation.content);
+          const foundTerms = [
+            ...operation.content.matchAll(new RegExp(searchedTerm, "g")),
+          ];
 
-          // @TODO: loop all matches.
-          if (foundTerms && foundTerms[0]) {
+          if (foundTerms && foundTerms.length > 0) {
             termFoundInChanges = true;
 
-            // Find terms in edit script and Extract positions.
-            const positionsToPaint: TextEditorPosition = {
-              content: currentContent,
-              posStart: foundTerms.index + operation.pos_start,
-              posEnd:
-                foundTerms.index + operation.pos_start + foundTerms[0].length,
-            };
-
-            results[fileName][changeLineNumber] = [positionsToPaint];
+            foundTerms.forEach((match) => {
+              if (match.index === undefined) {
+                return;
+              }
+              // Find terms in edit script and Extract positions.
+              const positionToPaint: TextEditorPosition = {
+                content: currentContent,
+                posStart: match.index + operation.pos_start,
+                posEnd: match.index + operation.pos_start + match[0].length,
+              };
+              if (results[fileName][changeLineNumber] === undefined) {
+                results[fileName][changeLineNumber] = [positionToPaint];
+              } else {
+                results[fileName][changeLineNumber].push(positionToPaint);
+              }
+            });
           }
         });
 
@@ -408,9 +417,9 @@ export class ActivityBarView implements vscode.Disposable {
         this._textEditorsDecorations.push(decoration);
         editors.forEach((editor) => {
           const editorLine = editor.document.lineAt(parsedFileLine);
+          const ranges: vscode.Range[] = [];
           positionChange.forEach((change) => {
             /*
-              @TODO:
               Check whether current content of the document at changed line is equal to passed change position content.
               We do this to prevent painting decoration that are irrelevant.
             */
@@ -423,14 +432,15 @@ export class ActivityBarView implements vscode.Disposable {
             );
 
             if (changeChunkAlone === editorChunkAlone) {
-              editor.setDecorations(decoration, [
+              ranges.push(
                 new vscode.Range(
                   new vscode.Position(parsedFileLine, change.posStart),
                   new vscode.Position(parsedFileLine, change.posEnd)
-                ),
-              ]);
+                )
+              );
             }
           });
+          editor.setDecorations(decoration, ranges);
         });
       }
     }
