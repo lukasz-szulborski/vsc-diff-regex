@@ -55,18 +55,16 @@ export class ActivityBarView implements vscode.Disposable {
 
     // Listen for text document save.
     vscode.workspace.onDidSaveTextDocument(
-      async () => {
-        const changes = await this._getFilesChanges();
-        this._postChangesToWebview(changes[1]);
-      },
+      async () => await this._getAndApplyChanges(),
       undefined,
       this._disposables
     );
 
     vscode.workspace.onDidChangeTextDocument(
       async () => {
-        // @TODO: Paint only changes.
-        console.log("keystroke");
+        this._paintDecorationsInTextEditors(
+          this._getTermPositionsInChangesFromState
+        );
       },
       undefined,
       this._disposables
@@ -81,8 +79,9 @@ export class ActivityBarView implements vscode.Disposable {
           [X] Check if it works for re-opening closed tabs
           [X] Check if it works po splitting into new tab.
       */
-        // @TODO: Paint decorations only.
-        await this._getFilesChanges();
+        this._paintDecorationsInTextEditors(
+          this._getTermPositionsInChangesFromState
+        );
       },
       undefined,
       this._disposables
@@ -184,15 +183,27 @@ export class ActivityBarView implements vscode.Disposable {
     );
   }
 
-  private get _getSearchInputFromState(): string | null {
+  private _getValueFromState(key: WorkspaceStateKeys): string | null {
     const { workspaceState } = this._extensionContext;
-    const currentValue = workspaceState.get(
-      WorkspaceStateKeys.ABV_SEARCH_INPUT
-    ) as string;
-    if (!currentValue) {
+    const value = workspaceState.get(key) as string;
+    if (!value) {
       return null;
     }
-    return currentValue;
+    return value;
+  }
+
+  private get _getSearchInputFromState(): string | null {
+    return this._getValueFromState(WorkspaceStateKeys.ABV_SEARCH_INPUT);
+  }
+
+  private get _getTermPositionsInChangesFromState(): FilenameLineTextEditorPositionHashMap {
+    const positions = this._getValueFromState(
+      WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS
+    );
+    if (positions === null) {
+      return {};
+    }
+    return JSON.parse(positions) as FilenameLineTextEditorPositionHashMap;
   }
 
   private async _handleSearchInputChange(
@@ -207,9 +218,18 @@ export class ActivityBarView implements vscode.Disposable {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
     }
 
-    // Always when input was changed, check for new search results.
+    // Always when input was changed apply new changes.
+    await this._getAndApplyChanges();
+  }
+
+  private async _getAndApplyChanges(): Promise<void> {
     const changes = await this._getFilesChanges();
+    this._paintDecorationsInTextEditors(changes[0]);
     this._postChangesToWebview(changes[1]);
+    await this._saveInStorage(
+      WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS,
+      JSON.stringify(changes[0])
+    );
   }
 
   /**
@@ -244,9 +264,6 @@ export class ActivityBarView implements vscode.Disposable {
     this._renderView();
   }
 
-  /**
-   * Loads data from extenstion's storage to the web view.
-   */
   private _postSearchInputValueToWebview(term: string | null): void {
     // Load search input content.
     this._view.webview.postMessage({
@@ -260,6 +277,14 @@ export class ActivityBarView implements vscode.Disposable {
       command: "newResults",
       matches: changes,
     });
+  }
+
+  private async _saveInStorage(
+    key: WorkspaceStateKeys,
+    value: any
+  ): Promise<void> {
+    const { workspaceState } = this._extensionContext;
+    await workspaceState.update(key, value);
   }
 
   private _getEditorPositionsFromFilenameLineChangeHashMap({
@@ -415,7 +440,6 @@ export class ActivityBarView implements vscode.Disposable {
    * Function that should be run on file content changes or searched term changes.
    * Analyzes `git diff`, filters by current regex search.
    *
-   * @TODO: refactor
    */
   private async _getFilesChanges(): Promise<
     [FilenameLineTextEditorPositionHashMap, RepositoryFileChange[]]
@@ -423,9 +447,9 @@ export class ActivityBarView implements vscode.Disposable {
     const searchInputValue = this._getSearchInputFromState;
 
     /* 
-      -----
-      -- PARSING SUBROUTINE
-      -----
+      -----              -----
+      -- PARSING SUBROUTINE --
+      -----              -----
 
       It will parse "git diff" command and put it into easy-to-interpret (for this special case) objects. 
 
@@ -532,17 +556,6 @@ export class ActivityBarView implements vscode.Disposable {
         );
         return updatedFileChange;
       }
-    );
-
-    // @TODO: insert callback hook "onChangesReady"
-    // this._view.webview.postMessage({
-    //   command: "newResults",
-    //   matches: fullyFilteredChanges,
-    // });
-
-    // @TODO: "onChangedPositionsReady"
-    this._paintDecorationsInTextEditors(
-      editorPositionsFromFilenameLineChangeHashMap
     );
 
     return [editorPositionsFromFilenameLineChangeHashMap, fullyFilteredChanges];

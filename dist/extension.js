@@ -830,13 +830,9 @@ class ActivityBarView {
         // Listen for messages within the View.
         this._setWebviewMessageListener();
         // Listen for text document save.
-        vscode.workspace.onDidSaveTextDocument(async () => {
-            const changes = await this._getFilesChanges();
-            this._postChangesToWebview(changes[1]);
-        }, undefined, this._disposables);
+        vscode.workspace.onDidSaveTextDocument(async () => await this._getAndApplyChanges(), undefined, this._disposables);
         vscode.workspace.onDidChangeTextDocument(async () => {
-            // @TODO: Paint only changes.
-            console.log("keystroke");
+            this._paintDecorationsInTextEditors(this._getTermPositionsInChangesFromState);
         }, undefined, this._disposables);
         vscode.window.onDidChangeVisibleTextEditors(async () => {
             /*
@@ -846,8 +842,7 @@ class ActivityBarView {
               [X] Check if it works for re-opening closed tabs
               [X] Check if it works po splitting into new tab.
           */
-            // @TODO: Paint decorations only.
-            await this._getFilesChanges();
+            this._paintDecorationsInTextEditors(this._getTermPositionsInChangesFromState);
         }, undefined, this._disposables);
         // Clean disposables.
         this._view.onDidDispose(this.dispose, undefined, this._disposables);
@@ -927,13 +922,23 @@ class ActivityBarView {
             }
         }, undefined, this._disposables);
     }
-    get _getSearchInputFromState() {
+    _getValueFromState(key) {
         const { workspaceState } = this._extensionContext;
-        const currentValue = workspaceState.get(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT);
-        if (!currentValue) {
+        const value = workspaceState.get(key);
+        if (!value) {
             return null;
         }
-        return currentValue;
+        return value;
+    }
+    get _getSearchInputFromState() {
+        return this._getValueFromState(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT);
+    }
+    get _getTermPositionsInChangesFromState() {
+        const positions = this._getValueFromState(types_1.WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS);
+        if (positions === null) {
+            return {};
+        }
+        return JSON.parse(positions);
     }
     async _handleSearchInputChange(value, force = false) {
         const { workspaceState } = this._extensionContext;
@@ -943,9 +948,14 @@ class ActivityBarView {
         if (value !== currentValue || force) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
         }
-        // Always when input was changed, check for new search results.
+        // Always when input was changed apply new changes.
+        await this._getAndApplyChanges();
+    }
+    async _getAndApplyChanges() {
         const changes = await this._getFilesChanges();
+        this._paintDecorationsInTextEditors(changes[0]);
         this._postChangesToWebview(changes[1]);
+        await this._saveInStorage(types_1.WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS, JSON.stringify(changes[0]));
     }
     /**
      * Open text document in an editor.
@@ -971,9 +981,6 @@ class ActivityBarView {
         }
         this._renderView();
     }
-    /**
-     * Loads data from extenstion's storage to the web view.
-     */
     _postSearchInputValueToWebview(term) {
         // Load search input content.
         this._view.webview.postMessage({
@@ -986,6 +993,10 @@ class ActivityBarView {
             command: "newResults",
             matches: changes,
         });
+    }
+    async _saveInStorage(key, value) {
+        const { workspaceState } = this._extensionContext;
+        await workspaceState.update(key, value);
     }
     _getEditorPositionsFromFilenameLineChangeHashMap({ changesHashMap, searchedTerm, onLineChangeEncountered, }) {
         const results = {};
@@ -1106,14 +1117,13 @@ class ActivityBarView {
      * Function that should be run on file content changes or searched term changes.
      * Analyzes `git diff`, filters by current regex search.
      *
-     * @TODO: refactor
      */
     async _getFilesChanges() {
         const searchInputValue = this._getSearchInputFromState;
         /*
-          -----
-          -- PARSING SUBROUTINE
-          -----
+          -----              -----
+          -- PARSING SUBROUTINE --
+          -----              -----
     
           It will parse "git diff" command and put it into easy-to-interpret (for this special case) objects.
     
@@ -1203,13 +1213,6 @@ class ActivityBarView {
             updatedFileChange.changes = fileChange.changes.filter((change) => !linesToRemove.includes(change.line));
             return updatedFileChange;
         });
-        // @TODO: insert callback hook "onChangesReady"
-        // this._view.webview.postMessage({
-        //   command: "newResults",
-        //   matches: fullyFilteredChanges,
-        // });
-        // @TODO: "onChangedPositionsReady"
-        this._paintDecorationsInTextEditors(editorPositionsFromFilenameLineChangeHashMap);
         return [editorPositionsFromFilenameLineChangeHashMap, fullyFilteredChanges];
     }
     /**
@@ -1415,6 +1418,7 @@ exports.WorkspaceStateKeys = void 0;
 var WorkspaceStateKeys;
 (function (WorkspaceStateKeys) {
     WorkspaceStateKeys["ABV_SEARCH_INPUT"] = "ABV_SEARCH_INPUT";
+    WorkspaceStateKeys["ABV_CHANGES_TERM_POSITIONS"] = "ABV_CHANGES_POSITIONS";
 })(WorkspaceStateKeys = exports.WorkspaceStateKeys || (exports.WorkspaceStateKeys = {}));
 
 
