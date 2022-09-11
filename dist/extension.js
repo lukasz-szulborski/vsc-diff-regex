@@ -1626,11 +1626,7 @@ async function activate(context) {
         let ping = vscode.commands.registerCommand("vdr.ping", () => {
             vscode.window.showInformationMessage("Pong");
         });
-        let gitDiff = vscode.commands.registerCommand("vdr.git-diff", async () => {
-            const diff = await gitApi.parseDiff();
-            console.log(diff);
-        });
-        context.subscriptions.push(ping, gitDiff);
+        context.subscriptions.push(ping);
     }
 }
 exports.activate = activate;

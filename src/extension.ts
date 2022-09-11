@@ -56,12 +56,7 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage("Pong");
     });
 
-    let gitDiff = vscode.commands.registerCommand("vdr.git-diff", async () => {
-      const diff = await gitApi.parseDiff();
-      console.log(diff);
-    });
-
-    context.subscriptions.push(ping, gitDiff);
+    context.subscriptions.push(ping);
   }
 }
 
