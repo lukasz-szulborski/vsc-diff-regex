@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
 import { Repository } from "../../../declarations/git";
 import GitApi from "../../gitExtensionApi";
-import { WebviewUriProvider } from "../../Helpers";
+import { ExtensionConfiguration, WebviewUriProvider } from "../../Helpers";
 import {
   ActivityBarViewLoadingState,
   ActivityBarViewLoadingStateKeys,
+  ConfigurationKeys,
   FilenameLineChangesHashMap,
   FilenameLineTextEditorPositionHashMap,
   GetEditorPositionsFromFilenameLineChangeHashMapParams,
@@ -55,7 +56,12 @@ export class ActivityBarView implements vscode.Disposable {
 
     // Listen for text document save.
     vscode.workspace.onDidSaveTextDocument(
-      async () => await this._getAndApplyChanges(),
+      async (ctx) => {
+        // Apply changes when user saves a project file only.
+        if (ctx.uri.scheme === "file") {
+          await this._getAndApplyChanges();
+        }
+      },
       undefined,
       this._disposables
     );
@@ -411,7 +417,10 @@ export class ActivityBarView implements vscode.Disposable {
         const parsedFileLine = parseInt(fileLine);
         // Create decoration.
         const decoration = vscode.window.createTextEditorDecorationType({
-          backgroundColor: "green",
+          backgroundColor:
+            ExtensionConfiguration.getKey(
+              ConfigurationKeys.MATCH_BACKGROUND_COLOR
+            ) ?? "green",
           rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
         });
         this._textEditorsDecorations.push(decoration);

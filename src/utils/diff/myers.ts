@@ -327,6 +327,7 @@ export const myersDiff = (str1: string, str2: string) => {
     moves: number,
     history: number[][]
   ): number[][] => {
+    // @TODO: dont do number[][], create distinguishable type for history
     const go = (dth_move: number, history: number[][]): number[][] => {
       // Result of previous move.
       const previous_v_snapshot = history[history.length - 1];
@@ -397,6 +398,7 @@ export const myersDiff = (str1: string, str2: string) => {
             is_invalid_path: false,
           };
         }
+        // @TODO: Curry first couple of args 
         // Take next possible moves for left and right.
         const left_path = recover_single_move(
           next_v_snapshot,

@@ -1,5 +1,5 @@
 {
-  "name": "vdr",
+  "name": "vsc-diff-regex",
   "displayName": "vsc-diff-regex",
   "description": "Find matching RegEx in git diff",
   "version": "0.0.1",
@@ -41,6 +41,17 @@
           "type": "webview"
         }
       ]
+    },
+    "configuration": {
+      "title": "Match Background Color",
+      "properties": {
+        "vsc-diff-regex.matchBackgroundColor": {
+          "type": "string",
+          "default": "#2C8219",
+          "description": "Background color of highlight of found searched term.",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        }
+      }
     }
   },
   "scripts": {

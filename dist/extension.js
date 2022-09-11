@@ -637,6 +637,7 @@ const myersDiff = (str1, str2) => {
           This array of k-diagonal states facilitates recovering the shortest path from (N, M) to (0,0).
       */
     const traverse_edit_graph = (moves, history) => {
+        // @TODO: dont do number[][], create distinguishable type for history
         const go = (dth_move, history) => {
             // Result of previous move.
             const previous_v_snapshot = history[history.length - 1];
@@ -694,6 +695,7 @@ const myersDiff = (str1, str2) => {
                         is_invalid_path: false,
                     };
                 }
+                // @TODO: Curry first couple of args 
                 // Take next possible moves for left and right.
                 const left_path = recover_single_move(next_v_snapshot, str1, str2, [x, y], edit_graph, aux, history, is_left_move_out_of_bound, shifted_k_left, shifted_k_left - nm);
                 const right_path = recover_single_move(next_v_snapshot, str1, str2, [x, y], edit_graph, aux, history, is_right_move_out_of_bound, shifted_k_right, shifted_k_right - nm);
@@ -830,7 +832,12 @@ class ActivityBarView {
         // Listen for messages within the View.
         this._setWebviewMessageListener();
         // Listen for text document save.
-        vscode.workspace.onDidSaveTextDocument(async () => await this._getAndApplyChanges(), undefined, this._disposables);
+        vscode.workspace.onDidSaveTextDocument(async (ctx) => {
+            // Apply changes when user saves a project file only.
+            if (ctx.uri.scheme === "file") {
+                await this._getAndApplyChanges();
+            }
+        }, undefined, this._disposables);
         vscode.workspace.onDidChangeTextDocument(async () => {
             this._paintDecorationsInTextEditors(this._getTermPositionsInChangesFromState);
         }, undefined, this._disposables);
@@ -1100,7 +1107,7 @@ class ActivityBarView {
                 const parsedFileLine = parseInt(fileLine);
                 // Create decoration.
                 const decoration = vscode.window.createTextEditorDecorationType({
-                    backgroundColor: "green",
+                    backgroundColor: Helpers_1.ExtensionConfiguration.getKey(types_1.ConfigurationKeys.MATCH_BACKGROUND_COLOR) ?? "green",
                     rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
                 });
                 this._textEditorsDecorations.push(decoration);
@@ -1324,6 +1331,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(18), exports);
+__exportStar(__webpack_require__(30), exports);
 
 
 /***/ }),
@@ -1417,6 +1425,7 @@ __exportStar(__webpack_require__(23), exports);
 __exportStar(__webpack_require__(24), exports);
 __exportStar(__webpack_require__(25), exports);
 __exportStar(__webpack_require__(26), exports);
+__exportStar(__webpack_require__(29), exports);
 
 
 /***/ }),
@@ -1507,6 +1516,36 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 29 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ConfigurationKeys = void 0;
+var ConfigurationKeys;
+(function (ConfigurationKeys) {
+    ConfigurationKeys["MATCH_BACKGROUND_COLOR"] = "matchBackgroundColor";
+})(ConfigurationKeys = exports.ConfigurationKeys || (exports.ConfigurationKeys = {}));
+
+
+/***/ }),
+/* 30 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExtensionConfiguration = void 0;
+const vscode = __webpack_require__(1);
+class ExtensionConfiguration {
+    constructor() { }
+    static getKey(key) {
+        return vscode.workspace.getConfiguration("vsc-diff-regex").get(key) ?? null;
+    }
+}
+exports.ExtensionConfiguration = ExtensionConfiguration;
 
 
 /***/ })
