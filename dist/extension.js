@@ -82,8 +82,7 @@ class GitApi {
                                     line: change.ln - 1,
                                     content: cleanAddChange
                                         ? change.content.replace(/^\+/g, "")
-                                        : // .replace(/^( |\t)*/g, "")
-                                            change.content,
+                                        : change.content,
                                     type: "add",
                                     isVisible: true,
                                 };
@@ -93,8 +92,7 @@ class GitApi {
                                     line: change.ln - 1,
                                     content: cleanDelChange
                                         ? change.content.replace(/^\-/g, "")
-                                        : // .replace(/^( |\t)*/g, "")
-                                            change.content,
+                                        : change.content,
                                     type: "del",
                                     isVisible: false,
                                 };
@@ -184,7 +182,9 @@ class GitApi {
                     try {
                         const textDocument = await vscode.workspace.openTextDocument(path);
                         const fileContent = textDocument.getText();
-                        const fileLines = fileContent.split("\n");
+                        const fileLines = fileContent
+                            .split("\n")
+                            .map((l) => l.replace(/\r/g, "")); // Remove carriage return character.
                         resolve({
                             relativeFilePath,
                             fileLines,

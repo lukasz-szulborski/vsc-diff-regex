@@ -94,8 +94,7 @@ export default class GitApi {
                     line: change.ln - 1,
                     content: cleanAddChange
                       ? change.content.replace(/^\+/g, "")
-                      : // .replace(/^( |\t)*/g, "")
-                        change.content,
+                      : change.content,
                     type: "add",
                     isVisible: true,
                   };
@@ -104,8 +103,7 @@ export default class GitApi {
                     line: change.ln - 1,
                     content: cleanDelChange
                       ? change.content.replace(/^\-/g, "")
-                      : // .replace(/^( |\t)*/g, "")
-                        change.content,
+                      : change.content,
                     type: "del",
                     isVisible: false,
                   };
@@ -228,7 +226,9 @@ export default class GitApi {
                 path
               );
               const fileContent = textDocument.getText();
-              const fileLines = fileContent.split("\n");
+              const fileLines = fileContent
+                .split("\n")
+                .map((l) => l.replace(/\r/g, "")); // Remove carriage return character.
               resolve({
                 relativeFilePath,
                 fileLines,
