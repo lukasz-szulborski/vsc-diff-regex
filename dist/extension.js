@@ -122,19 +122,13 @@ class GitApi {
         }
         return results;
     }
-    repositoryExist() {
-        return this.getWorkspaceMainRepository() !== null;
-    }
-    onDidOpenRepository(cb) {
-        this._vscGitApi.onDidOpenRepository(cb);
-    }
     onDidChangeState(cb) {
         this._vscGitApi.onDidChangeState(cb);
     }
-    getState() {
+    get getState() {
         return this._vscGitApi.state;
     }
-    getWorkspaceMainRepository() {
+    get getWorkspaceMainRepository() {
         const mainRepo = this._vscGitApi.getRepository(
         // @TODO: [roadmap] consider multiple workspaces
         vscode.workspace.workspaceFolders[0].uri);
@@ -148,7 +142,7 @@ class GitApi {
      *
      */
     async diffToObject() {
-        const repository = this.getWorkspaceMainRepository();
+        const repository = this.getWorkspaceMainRepository;
         if (repository) {
             const result = parseDiff(await repository.diff());
             return {
@@ -853,7 +847,7 @@ class ActivityBarView {
         }, undefined, this._disposables);
         // Clean disposables.
         this._view.onDidDispose(this.dispose, undefined, this._disposables);
-        if (this._gitApi.getState() === "initialized") {
+        if (this._gitApi.getState === "initialized") {
             this._handleGitApiInitialized();
         }
         else {
@@ -979,7 +973,7 @@ class ActivityBarView {
     }
     _handleGitApiInitialized() {
         // @TODO: [roadmap] consider multiple workspaces
-        const repository = this._gitApi.getWorkspaceMainRepository();
+        const repository = this._gitApi.getWorkspaceMainRepository;
         if (repository) {
             this._updateLoadingState("gitRepositories", false);
         }
@@ -1618,6 +1612,7 @@ async function activate(context) {
     // Make sure git extension is active
     if (await gitApi.activateGit()) {
         // check config (due to parse limitations of "parse-diff": "^0.9.0")
+        // @NOTE: remove in foreseeable future
         // ...
         // git config diff.noprefix === FALSE | undef
         // git config diff.mnemonicPrefix === FALSE | undef

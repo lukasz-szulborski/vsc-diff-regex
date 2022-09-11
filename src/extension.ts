@@ -40,6 +40,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (await gitApi.activateGit()) {
 
     // check config (due to parse limitations of "parse-diff": "^0.9.0")
+    // @NOTE: remove in foreseeable future
     // ...
     // git config diff.noprefix === FALSE | undef
     // git config diff.mnemonicPrefix === FALSE | undef

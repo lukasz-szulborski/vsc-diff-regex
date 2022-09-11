@@ -136,23 +136,16 @@ export default class GitApi {
     return results;
   }
 
-  public repositoryExist(): boolean {
-    return this.getWorkspaceMainRepository() !== null;
-  }
-
-  public onDidOpenRepository(cb: (e: Repository) => any) {
-    this._vscGitApi.onDidOpenRepository(cb);
-  }
 
   public onDidChangeState(cb: (e: APIState) => any) {
     this._vscGitApi.onDidChangeState(cb);
   }
 
-  public getState(): APIState {
+  public get getState(): APIState {
     return this._vscGitApi.state;
   }
 
-  public getWorkspaceMainRepository(): Repository | null {
+  public get getWorkspaceMainRepository(): Repository | null {
     const mainRepo = this._vscGitApi.getRepository(
       // @TODO: [roadmap] consider multiple workspaces
       vscode.workspace.workspaceFolders![0].uri
@@ -169,7 +162,7 @@ export default class GitApi {
    *
    */
   private async diffToObject(): Promise<RepositoryDiffObject | undefined> {
-    const repository = this.getWorkspaceMainRepository();
+    const repository = this.getWorkspaceMainRepository;
     if (repository) {
       const result = parseDiff(await repository.diff());
       return {

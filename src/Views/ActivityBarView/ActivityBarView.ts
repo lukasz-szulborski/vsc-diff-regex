@@ -96,7 +96,7 @@ export class ActivityBarView implements vscode.Disposable {
     // Clean disposables.
     this._view.onDidDispose(this.dispose, undefined, this._disposables);
 
-    if (this._gitApi.getState() === "initialized") {
+    if (this._gitApi.getState === "initialized") {
       this._handleGitApiInitialized();
     } else {
       this._gitApi.onDidChangeState((e) => {
@@ -261,7 +261,7 @@ export class ActivityBarView implements vscode.Disposable {
   private _handleGitApiInitialized(): void {
     // @TODO: [roadmap] consider multiple workspaces
     const repository: Repository | null =
-      this._gitApi.getWorkspaceMainRepository();
+      this._gitApi.getWorkspaceMainRepository;
     if (repository) {
       this._updateLoadingState("gitRepositories", false);
     } else {
