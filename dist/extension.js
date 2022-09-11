@@ -53,20 +53,14 @@ class GitApi {
         }
     }
     async parseDiff(config) {
-        const configExists = config !== undefined;
-        // @TODO: DRY
-        const includeUntracked = !configExists ||
-            (configExists &&
-                (config.includeUntracked === undefined ||
-                    config.includeUntracked === true));
-        const cleanAddChange = !configExists ||
-            (configExists &&
-                (config.cleanAddChange === undefined ||
-                    config.cleanAddChange === true));
-        const cleanDelChange = !configExists ||
-            (configExists &&
-                (config.cleanDelChange === undefined ||
-                    config.cleanDelChange === true));
+        const getConfigurationProperty = (key, config) => {
+            const configExists = config !== undefined;
+            return (!configExists ||
+                (configExists && (config[key] === undefined || config[key] === true)));
+        };
+        const includeUntracked = getConfigurationProperty("includeUntracked", config);
+        const cleanAddChange = getConfigurationProperty("cleanAddChange", config);
+        const cleanDelChange = getConfigurationProperty("cleanDelChange", config);
         const parsedDiff = await this.diffToObject();
         const results = [];
         // Include changes from `git diff`
