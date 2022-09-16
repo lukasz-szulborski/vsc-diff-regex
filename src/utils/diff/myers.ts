@@ -4,9 +4,11 @@ import {
   EditScriptRecovery,
 } from "../../types";
 
-type cords = [number, number];
+type Cords = [number, number];
 
-type edit_operation = "Insert" | "Delete";
+type EditOperation = "Insert" | "Delete";
+
+type History = number[][];
 
 const print_operation = ({
   content,
@@ -19,7 +21,7 @@ const print_operation = ({
   );
 };
 
-const get_CordsDiff = (a_cords: cords, b_cords: cords): CordsDiff => ({
+const get_CordsDiff = (a_cords: Cords, b_cords: Cords): CordsDiff => ({
   x_delta: Math.abs(a_cords[0] - b_cords[0]),
   y_delta: Math.abs(a_cords[1] - b_cords[1]),
 });
@@ -30,9 +32,9 @@ const get_CordsDiff = (a_cords: cords, b_cords: cords): CordsDiff => ({
  * (7, 6) (6, 6) -> Delete
  */
 const get_operation_between_cords = (
-  a_cords: cords,
-  b_cords: cords
-): edit_operation => {
+  a_cords: Cords,
+  b_cords: Cords
+): EditOperation => {
   let { x_delta, y_delta } = get_CordsDiff(a_cords, b_cords);
   if (y_delta > x_delta) {
     return "Insert";
@@ -41,19 +43,19 @@ const get_operation_between_cords = (
   }
 };
 
-const are_cords_non_negative = (cords: cords): boolean =>
+const are_cords_non_negative = (cords: Cords): boolean =>
   cords[0] >= 0 && cords[1] >= 0;
 
 /*
  * Check if first cord is smaller or equal.
  */
-const is_smaller_or_eq = (a_cords: cords, b_cords: cords): boolean =>
+const is_smaller_or_eq = (a_cords: Cords, b_cords: Cords): boolean =>
   a_cords[0] <= b_cords[0] && a_cords[1] <= b_cords[1];
 
 const did_point_exceed_strings = (
   s1: string,
   s2: string,
-  cord: cords
+  cord: Cords
 ): boolean => {
   const len1 = s1.length;
   const len2 = s2.length;
@@ -67,7 +69,7 @@ const did_point_exceed_strings = (
  * Whether coordinates are an endpoint to a snake.
  */
 const is_end_of_snake = (
-  cords: cords,
+  cords: Cords,
   snake_length: number,
   s1: string,
   s2: string
@@ -93,8 +95,8 @@ const is_end_of_snake = (
  * It checks whether *one* step length in a certain direction is valid. E.g. it is not possible to make a move of length more than 1 if there is no diagnal.
  */
 const is_step_distance_valid = (
-  a_cords: cords,
-  b_cords: cords,
+  a_cords: Cords,
+  b_cords: Cords,
   s1: string,
   s2: string
 ): boolean => {
@@ -120,7 +122,7 @@ const is_step_distance_valid = (
   }
 };
 
-const get_cords = (state: number[], k_idx: number, k: number): cords => {
+const get_cords = (state: number[], k_idx: number, k: number): Cords => {
   const x = state[k_idx];
   const y = x - k;
   return [x, y];
@@ -179,10 +181,10 @@ const recover_single_move = (
   next_v_snapshot: number[],
   str1: string,
   str2: string,
-  current_cords: cords,
+  current_cords: Cords,
   edit_graph: EditScriptOperation[],
   aux_function: (...args: any) => any,
-  history: number[][],
+  history: History,
   is_out_of_bound: boolean,
   shifted_k: number,
   k: number
@@ -323,12 +325,8 @@ export const myersDiff = (str1: string, str2: string) => {
         Each history array item holds an array of x values for each k-diagonal where X value means furthest possible position of k-diagonal on X axis in edit graph during Dth move.
         This array of k-diagonal states facilitates recovering the shortest path from (N, M) to (0,0). 
     */
-  const traverse_edit_graph = (
-    moves: number,
-    history: number[][]
-  ): number[][] => {
-    // @TODO: dont do number[][], create distinguishable type for history
-    const go = (dth_move: number, history: number[][]): number[][] => {
+  const traverse_edit_graph = (moves: number, history: History): History => {
+    const go = (dth_move: number, history: History): History => {
       // Result of previous move.
       const previous_v_snapshot = history[history.length - 1];
       if (dth_move > moves) {
@@ -352,9 +350,9 @@ export const myersDiff = (str1: string, str2: string) => {
     return go(0, history);
   };
   // Basing on list of snapshots of v-array (obtained in traverse_edit_graph) create an optimal edit script.
-  const recover_edit_script = (history: number[][]): EditScriptRecovery => {
+  const recover_edit_script = (history: History): EditScriptRecovery => {
     const aux = (
-      history: number[][],
+      history: History,
       current_k_diag: number,
       invalid_path: boolean,
       edit_graph: EditScriptOperation[]
@@ -398,7 +396,7 @@ export const myersDiff = (str1: string, str2: string) => {
             is_invalid_path: false,
           };
         }
-        // @TODO: Curry first couple of args 
+        // @TODO: Curry first couple of args
         // Take next possible moves for left and right.
         const left_path = recover_single_move(
           next_v_snapshot,
