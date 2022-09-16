@@ -255,6 +255,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(6), exports);
 __exportStar(__webpack_require__(9), exports);
 __exportStar(__webpack_require__(11), exports);
+__exportStar(__webpack_require__(13), exports);
 
 
 /***/ }),
@@ -379,11 +380,12 @@ __exportStar(__webpack_require__(12), exports);
 
 /***/ }),
 /* 12 */
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.myersDiff = void 0;
+const curry_1 = __webpack_require__(13);
 const print_operation = ({ content, operation_type, pos_end, pos_start, }) => {
     console.log(`{\n\tpos_start: ${pos_start}\n\tpos_end: ${pos_end}\n\toperation_type: ${operation_type}\n\tcontent: ${content}\n}\n`);
 };
@@ -625,7 +627,6 @@ const myersDiff = (str1, str2) => {
           This array of k-diagonal states facilitates recovering the shortest path from (N, M) to (0,0).
       */
     const traverse_edit_graph = (moves, history) => {
-        // @TODO: dont do number[][], create distinguishable type for history
         const go = (dth_move, history) => {
             // Result of previous move.
             const previous_v_snapshot = history[history.length - 1];
@@ -683,10 +684,11 @@ const myersDiff = (str1, str2) => {
                         is_invalid_path: false,
                     };
                 }
-                // @TODO: Curry first couple of args 
+                const curried_recover_single_move = (0, curry_1.curry)(recover_single_move);
+                const prepared_recover_single_move = curried_recover_single_move(next_v_snapshot, str1, str2, [x, y], edit_graph, aux, history);
                 // Take next possible moves for left and right.
-                const left_path = recover_single_move(next_v_snapshot, str1, str2, [x, y], edit_graph, aux, history, is_left_move_out_of_bound, shifted_k_left, shifted_k_left - nm);
-                const right_path = recover_single_move(next_v_snapshot, str1, str2, [x, y], edit_graph, aux, history, is_right_move_out_of_bound, shifted_k_right, shifted_k_right - nm);
+                const left_path = prepared_recover_single_move(is_left_move_out_of_bound, shifted_k_left, shifted_k_left - nm);
+                const right_path = prepared_recover_single_move(is_right_move_out_of_bound, shifted_k_right, shifted_k_right - nm);
                 // Choose path. Favour shorter paths and those with more deletions.
                 const left_length = left_path.operations.length;
                 const right_length = right_path.operations.length;
@@ -736,6 +738,27 @@ __exportStar(__webpack_require__(14), exports);
 
 /***/ }),
 /* 14 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.curry = void 0;
+const curry = (fn) => {
+    const go = (...args) => {
+        if (args.length >= fn.length) {
+            return fn(...args);
+        }
+        else {
+            return (...new_args) => go(...[...args, ...new_args]);
+        }
+    };
+    return go;
+};
+exports.curry = curry;
+
+
+/***/ }),
+/* 15 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -750,18 +773,37 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(15), exports);
 __exportStar(__webpack_require__(16), exports);
 
 
 /***/ }),
-/* 15 */
+/* 16 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(17), exports);
+__exportStar(__webpack_require__(18), exports);
+
+
+/***/ }),
+/* 17 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(14);
+const _1 = __webpack_require__(16);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -784,7 +826,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 16 */
+/* 18 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -792,8 +834,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(17);
-const types_1 = __webpack_require__(19);
+const Helpers_1 = __webpack_require__(19);
+const types_1 = __webpack_require__(22);
 const utils_1 = __webpack_require__(5);
 var RENDER_STATE;
 (function (RENDER_STATE) {
@@ -959,11 +1001,15 @@ class ActivityBarView {
      * @param line number of line where change occured
      */
     async _handleChangeClick(fullFilePath, change) {
-        // @TODO: catch statement
-        const doc = await vscode.workspace.openTextDocument(fullFilePath);
-        const editor = await vscode.window.showTextDocument(doc);
-        // Center at the position of the change.
-        editor.revealRange(new vscode.Range(new vscode.Position(change.line, 0), new vscode.Position(change.line, 0)), vscode.TextEditorRevealType.InCenter);
+        try {
+            const doc = await vscode.workspace.openTextDocument(fullFilePath);
+            const editor = await vscode.window.showTextDocument(doc);
+            // Center at the position of the change.
+            editor.revealRange(new vscode.Range(new vscode.Position(change.line, 0), new vscode.Position(change.line, 0)), vscode.TextEditorRevealType.InCenter);
+        }
+        catch (error) {
+            console.log(error);
+        }
     }
     _handleGitApiInitialized() {
         // @TODO: [roadmap] consider multiple workspaces
@@ -1076,47 +1122,50 @@ class ActivityBarView {
      * Inpure function that communicates with active text editors and paints
      * decorations on given positions.
      *
-     * @TODO: handle exceptions
-     *
      */
     _paintDecorationsInTextEditors(positions) {
-        // Dispose and clear decorations from previous render.
-        this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
-        this._textEditorsDecorations = [];
-        for (const filePath in positions) {
-            // Find editors with this file.
-            const editors = vscode.window.visibleTextEditors.filter((e) => e.document.uri.path.toLocaleLowerCase() ===
-                filePath.toLocaleLowerCase());
-            if (!editors || editors.length === 0) {
-                continue;
-            }
-            for (const fileLine in positions[filePath]) {
-                const positionChange = positions[filePath][fileLine];
-                const parsedFileLine = parseInt(fileLine);
-                // Create decoration.
-                const decoration = vscode.window.createTextEditorDecorationType({
-                    backgroundColor: Helpers_1.ExtensionConfiguration.getKey(types_1.ConfigurationKeys.MATCH_BACKGROUND_COLOR) ?? "green",
-                    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-                });
-                this._textEditorsDecorations.push(decoration);
-                editors.forEach((editor) => {
-                    const editorLine = editor.document.lineAt(parsedFileLine);
-                    const ranges = [];
-                    positionChange.forEach((change) => {
-                        /*
-                          Check whether current content of the document at changed line is equal to passed change position content.
-                          We do this to prevent painting decoration that are irrelevant.
-                        */
-                        const getChangeContentAtPosition = (s) => s.slice(change.posStart, change.posEnd);
-                        const changeChunkAlone = getChangeContentAtPosition(change.content);
-                        const editorChunkAlone = getChangeContentAtPosition(editorLine.text);
-                        if (changeChunkAlone === editorChunkAlone) {
-                            ranges.push(new vscode.Range(new vscode.Position(parsedFileLine, change.posStart), new vscode.Position(parsedFileLine, change.posEnd)));
-                        }
+        try {
+            // Dispose and clear decorations from previous render.
+            this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
+            this._textEditorsDecorations = [];
+            for (const filePath in positions) {
+                // Find editors with this file.
+                const editors = vscode.window.visibleTextEditors.filter((e) => e.document.uri.path.toLocaleLowerCase() ===
+                    filePath.toLocaleLowerCase());
+                if (!editors || editors.length === 0) {
+                    continue;
+                }
+                for (const fileLine in positions[filePath]) {
+                    const positionChange = positions[filePath][fileLine];
+                    const parsedFileLine = parseInt(fileLine);
+                    // Create decoration.
+                    const decoration = vscode.window.createTextEditorDecorationType({
+                        backgroundColor: Helpers_1.ExtensionConfiguration.getKey(types_1.ConfigurationKeys.MATCH_BACKGROUND_COLOR) ?? "green",
+                        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
                     });
-                    editor.setDecorations(decoration, ranges);
-                });
+                    this._textEditorsDecorations.push(decoration);
+                    editors.forEach((editor) => {
+                        const editorLine = editor.document.lineAt(parsedFileLine);
+                        const ranges = [];
+                        positionChange.forEach((change) => {
+                            /*
+                            Check whether current content of the document at changed line is equal to passed change position content.
+                            We do this to prevent painting decoration that are irrelevant.
+                          */
+                            const getChangeContentAtPosition = (s) => s.slice(change.posStart, change.posEnd);
+                            const changeChunkAlone = getChangeContentAtPosition(change.content);
+                            const editorChunkAlone = getChangeContentAtPosition(editorLine.text);
+                            if (changeChunkAlone === editorChunkAlone) {
+                                ranges.push(new vscode.Range(new vscode.Position(parsedFileLine, change.posStart), new vscode.Position(parsedFileLine, change.posEnd)));
+                            }
+                        });
+                        editor.setDecorations(decoration, ranges);
+                    });
+                }
             }
+        }
+        catch (error) {
+            console.log(error);
         }
     }
     /**
@@ -1303,7 +1352,7 @@ exports.ActivityBarView = ActivityBarView;
 
 
 /***/ }),
-/* 17 */
+/* 19 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1318,12 +1367,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(18), exports);
-__exportStar(__webpack_require__(30), exports);
+__exportStar(__webpack_require__(20), exports);
+__exportStar(__webpack_require__(21), exports);
 
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1391,7 +1440,24 @@ exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
-/* 19 */
+/* 21 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ExtensionConfiguration = void 0;
+const vscode = __webpack_require__(1);
+class ExtensionConfiguration {
+    constructor() { }
+    static getKey(key) {
+        return vscode.workspace.getConfiguration("vsc-diff-regex").get(key) ?? null;
+    }
+}
+exports.ExtensionConfiguration = ExtensionConfiguration;
+
+
+/***/ }),
+/* 22 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1406,18 +1472,18 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(20), exports);
-__exportStar(__webpack_require__(21), exports);
-__exportStar(__webpack_require__(22), exports);
 __exportStar(__webpack_require__(23), exports);
 __exportStar(__webpack_require__(24), exports);
 __exportStar(__webpack_require__(25), exports);
 __exportStar(__webpack_require__(26), exports);
 __exportStar(__webpack_require__(29), exports);
+__exportStar(__webpack_require__(30), exports);
+__exportStar(__webpack_require__(31), exports);
+__exportStar(__webpack_require__(32), exports);
 
 
 /***/ }),
-/* 20 */
+/* 23 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1428,42 +1494,6 @@ var WorkspaceStateKeys;
     WorkspaceStateKeys["ABV_SEARCH_INPUT"] = "ABV_SEARCH_INPUT";
     WorkspaceStateKeys["ABV_CHANGES_TERM_POSITIONS"] = "ABV_CHANGES_POSITIONS";
 })(WorkspaceStateKeys = exports.WorkspaceStateKeys || (exports.WorkspaceStateKeys = {}));
-
-
-/***/ }),
-/* 21 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 22 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 23 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(27), exports);
-__exportStar(__webpack_require__(28), exports);
 
 
 /***/ }),
@@ -1484,10 +1514,22 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 /* 26 */
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(27), exports);
+__exportStar(__webpack_require__(28), exports);
 
 
 /***/ }),
@@ -1512,28 +1554,35 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 30 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 31 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 32 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConfigurationKeys = void 0;
 var ConfigurationKeys;
 (function (ConfigurationKeys) {
     ConfigurationKeys["MATCH_BACKGROUND_COLOR"] = "matchBackgroundColor";
 })(ConfigurationKeys = exports.ConfigurationKeys || (exports.ConfigurationKeys = {}));
-
-
-/***/ }),
-/* 30 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ExtensionConfiguration = void 0;
-const vscode = __webpack_require__(1);
-class ExtensionConfiguration {
-    constructor() { }
-    static getKey(key) {
-        return vscode.workspace.getConfiguration("vsc-diff-regex").get(key) ?? null;
-    }
-}
-exports.ExtensionConfiguration = ExtensionConfiguration;
 
 
 /***/ })
@@ -1573,7 +1622,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Views_1 = __webpack_require__(13);
+const Views_1 = __webpack_require__(15);
 /**
  ******* NOTES *******
  *

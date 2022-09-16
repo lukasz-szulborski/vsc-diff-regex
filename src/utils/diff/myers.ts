@@ -3,6 +3,7 @@ import {
   EditScriptOperation,
   EditScriptRecovery,
 } from "../../types";
+import { curry } from "../curry";
 
 type Cords = [number, number];
 
@@ -396,28 +397,23 @@ export const myersDiff = (str1: string, str2: string) => {
             is_invalid_path: false,
           };
         }
-        // @TODO: Curry first couple of args
-        // Take next possible moves for left and right.
-        const left_path = recover_single_move(
+        const curried_recover_single_move = curry(recover_single_move);
+        const prepared_recover_single_move = curried_recover_single_move(
           next_v_snapshot,
           str1,
           str2,
           [x, y],
           edit_graph,
           aux,
-          history,
+          history
+        );
+        // Take next possible moves for left and right.
+        const left_path = prepared_recover_single_move(
           is_left_move_out_of_bound,
           shifted_k_left,
           shifted_k_left - nm
         );
-        const right_path = recover_single_move(
-          next_v_snapshot,
-          str1,
-          str2,
-          [x, y],
-          edit_graph,
-          aux,
-          history,
+        const right_path = prepared_recover_single_move(
           is_right_move_out_of_bound,
           shifted_k_right,
           shifted_k_right - nm
