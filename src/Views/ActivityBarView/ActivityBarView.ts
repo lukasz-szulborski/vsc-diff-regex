@@ -245,17 +245,20 @@ export class ActivityBarView implements vscode.Disposable {
    * @param line number of line where change occured
    */
   private async _handleChangeClick(fullFilePath: string, change: LineChange) {
-    // @TODO: catch statement
-    const doc = await vscode.workspace.openTextDocument(fullFilePath);
-    const editor = await vscode.window.showTextDocument(doc);
-    // Center at the position of the change.
-    editor.revealRange(
-      new vscode.Range(
-        new vscode.Position(change.line, 0),
-        new vscode.Position(change.line, 0)
-      ),
-      vscode.TextEditorRevealType.InCenter
-    );
+    try {
+      const doc = await vscode.workspace.openTextDocument(fullFilePath);
+      const editor = await vscode.window.showTextDocument(doc);
+      // Center at the position of the change.
+      editor.revealRange(
+        new vscode.Range(
+          new vscode.Position(change.line, 0),
+          new vscode.Position(change.line, 0)
+        ),
+        vscode.TextEditorRevealType.InCenter
+      );
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   private _handleGitApiInitialized(): void {
@@ -390,68 +393,74 @@ export class ActivityBarView implements vscode.Disposable {
    * Inpure function that communicates with active text editors and paints
    * decorations on given positions.
    *
-   * @TODO: handle exceptions
-   *
    */
   private _paintDecorationsInTextEditors(
     positions: FilenameLineTextEditorPositionHashMap
   ): void {
-    // Dispose and clear decorations from previous render.
-    this._textEditorsDecorations.forEach((decoration) => decoration.dispose());
-    this._textEditorsDecorations = [];
-
-    for (const filePath in positions) {
-      // Find editors with this file.
-      const editors = vscode.window.visibleTextEditors.filter(
-        (e) =>
-          e.document.uri.path.toLocaleLowerCase() ===
-          filePath.toLocaleLowerCase()
+    try {
+      // Dispose and clear decorations from previous render.
+      this._textEditorsDecorations.forEach((decoration) =>
+        decoration.dispose()
       );
+      this._textEditorsDecorations = [];
 
-      if (!editors || editors.length === 0) {
-        continue;
-      }
+      for (const filePath in positions) {
+        // Find editors with this file.
+        const editors = vscode.window.visibleTextEditors.filter(
+          (e) =>
+            e.document.uri.path.toLocaleLowerCase() ===
+            filePath.toLocaleLowerCase()
+        );
 
-      for (const fileLine in positions[filePath]) {
-        const positionChange = positions[filePath][fileLine];
-        const parsedFileLine = parseInt(fileLine);
-        // Create decoration.
-        const decoration = vscode.window.createTextEditorDecorationType({
-          backgroundColor:
-            ExtensionConfiguration.getKey(
-              ConfigurationKeys.MATCH_BACKGROUND_COLOR
-            ) ?? "green",
-          rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-        });
-        this._textEditorsDecorations.push(decoration);
-        editors.forEach((editor) => {
-          const editorLine = editor.document.lineAt(parsedFileLine);
-          const ranges: vscode.Range[] = [];
-          positionChange.forEach((change) => {
-            /*
+        if (!editors || editors.length === 0) {
+          continue;
+        }
+
+        for (const fileLine in positions[filePath]) {
+          const positionChange = positions[filePath][fileLine];
+          const parsedFileLine = parseInt(fileLine);
+          // Create decoration.
+          const decoration = vscode.window.createTextEditorDecorationType({
+            backgroundColor:
+              ExtensionConfiguration.getKey(
+                ConfigurationKeys.MATCH_BACKGROUND_COLOR
+              ) ?? "green",
+            rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+          });
+          this._textEditorsDecorations.push(decoration);
+          editors.forEach((editor) => {
+            const editorLine = editor.document.lineAt(parsedFileLine);
+            const ranges: vscode.Range[] = [];
+            positionChange.forEach((change) => {
+              /*
               Check whether current content of the document at changed line is equal to passed change position content.
               We do this to prevent painting decoration that are irrelevant.
             */
-            const getChangeContentAtPosition = (s: string): string =>
-              s.slice(change.posStart, change.posEnd);
+              const getChangeContentAtPosition = (s: string): string =>
+                s.slice(change.posStart, change.posEnd);
 
-            const changeChunkAlone = getChangeContentAtPosition(change.content);
-            const editorChunkAlone = getChangeContentAtPosition(
-              editorLine.text
-            );
-
-            if (changeChunkAlone === editorChunkAlone) {
-              ranges.push(
-                new vscode.Range(
-                  new vscode.Position(parsedFileLine, change.posStart),
-                  new vscode.Position(parsedFileLine, change.posEnd)
-                )
+              const changeChunkAlone = getChangeContentAtPosition(
+                change.content
               );
-            }
+              const editorChunkAlone = getChangeContentAtPosition(
+                editorLine.text
+              );
+
+              if (changeChunkAlone === editorChunkAlone) {
+                ranges.push(
+                  new vscode.Range(
+                    new vscode.Position(parsedFileLine, change.posStart),
+                    new vscode.Position(parsedFileLine, change.posEnd)
+                  )
+                );
+              }
+            });
+            editor.setDecorations(decoration, ranges);
           });
-          editor.setDecorations(decoration, ranges);
-        });
+        }
       }
+    } catch (error) {
+      console.log(error);
     }
   }
 
