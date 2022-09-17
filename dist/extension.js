@@ -981,7 +981,6 @@ class ActivityBarView {
         const { workspaceState } = this._extensionContext;
         const currentValue = this._getSearchInputFromState;
         // Avoid unnecessary renders and updates
-        // @TODO: force should be made on every reload of this view (leaving the sidebar aswell)
         if (value !== currentValue || force) {
             workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
         }

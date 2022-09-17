@@ -219,7 +219,6 @@ export class ActivityBarView implements vscode.Disposable {
     const { workspaceState } = this._extensionContext;
     const currentValue = this._getSearchInputFromState;
     // Avoid unnecessary renders and updates
-    // @TODO: force should be made on every reload of this view (leaving the sidebar aswell)
     if (value !== currentValue || force) {
       workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
     }
