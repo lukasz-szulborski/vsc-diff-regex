@@ -68,7 +68,7 @@ export default class GitApi {
         (configExists && (config[key] === undefined || config[key] === true))
       );
     };
-    
+
     const includeUntracked = getConfigurationProperty(
       "includeUntracked",
       config
