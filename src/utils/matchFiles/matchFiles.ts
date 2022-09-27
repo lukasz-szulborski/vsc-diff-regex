@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
-type ContextFile = readonly [string, vscode.Uri, vscode.FileType];
+type Filename = string;
+type ContextFile = readonly [Filename, vscode.Uri, vscode.FileType];
 type FutureUri = Promise<vscode.Uri[]>;
 
 /**
