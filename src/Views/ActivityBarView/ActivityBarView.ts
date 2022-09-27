@@ -7,11 +7,11 @@ import {
   ActivityBarViewLoadingStateKeys,
   ConfigurationKeys,
   FilenameLineChangesHashMap,
-  FilenameLineTextEditorPositionHashMap,
+  FilesPositionsHashMap,
   GetEditorPositionsFromFilenameLineChangeHashMapParams,
   LineChange,
   RepositoryFileChange,
-  TextEditorPosition,
+  TextEditorInlinePosition,
   WorkspaceStateKeys,
 } from "../../types";
 import { myersDiff } from "../../utils";
@@ -202,14 +202,14 @@ export class ActivityBarView implements vscode.Disposable {
     return this._getValueFromState(WorkspaceStateKeys.ABV_SEARCH_INPUT);
   }
 
-  private get _getTermPositionsInChangesFromState(): FilenameLineTextEditorPositionHashMap {
+  private get _getTermPositionsInChangesFromState(): FilesPositionsHashMap {
     const positions = this._getValueFromState(
       WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS
     );
     if (positions === null) {
       return {};
     }
-    return JSON.parse(positions) as FilenameLineTextEditorPositionHashMap;
+    return JSON.parse(positions) as FilesPositionsHashMap;
   }
 
   private async _handleSearchInputChange(
@@ -220,7 +220,7 @@ export class ActivityBarView implements vscode.Disposable {
     const currentValue = this._getSearchInputFromState;
     // Avoid unnecessary renders and updates
     if (value !== currentValue || force) {
-      workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
+      await workspaceState.update(WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
     }
 
     // Always when input was changed apply new changes.
@@ -299,8 +299,8 @@ export class ActivityBarView implements vscode.Disposable {
     changesHashMap,
     searchedTerm,
     onLineChangeEncountered,
-  }: GetEditorPositionsFromFilenameLineChangeHashMapParams): FilenameLineTextEditorPositionHashMap {
-    const results: FilenameLineTextEditorPositionHashMap = {};
+  }: GetEditorPositionsFromFilenameLineChangeHashMapParams): FilesPositionsHashMap {
+    const results: FilesPositionsHashMap = {};
 
     for (const fileName in changesHashMap) {
       results[fileName] = {}; // Prepare hash map for given file.
@@ -348,7 +348,6 @@ export class ActivityBarView implements vscode.Disposable {
           }
 
           // Find terms in edit script.
-          // const foundTerms = searchedTerm.exec(operation.content);
           const foundTerms = [
             ...operation.content.matchAll(new RegExp(searchedTerm, "g")),
           ];
@@ -361,7 +360,7 @@ export class ActivityBarView implements vscode.Disposable {
                 return;
               }
               // Find terms in edit script and Extract positions.
-              const positionToPaint: TextEditorPosition = {
+              const positionToPaint: TextEditorInlinePosition = {
                 content: currentContent,
                 posStart: match.index + operation.pos_start,
                 posEnd: match.index + operation.pos_start + match[0].length,
@@ -394,7 +393,7 @@ export class ActivityBarView implements vscode.Disposable {
    *
    */
   private _paintDecorationsInTextEditors(
-    positions: FilenameLineTextEditorPositionHashMap
+    positions: FilesPositionsHashMap
   ): void {
     try {
       // Dispose and clear decorations from previous render.
@@ -469,9 +468,13 @@ export class ActivityBarView implements vscode.Disposable {
    *
    */
   private async _getFilesChanges(): Promise<
-    [FilenameLineTextEditorPositionHashMap, RepositoryFileChange[]]
+    [FilesPositionsHashMap, RepositoryFileChange[]]
   > {
     const searchInputValue = this._getSearchInputFromState;
+
+    if (searchInputValue === null || searchInputValue.length === 0) {
+      return [{}, []];
+    }
 
     /* 
       -----              -----

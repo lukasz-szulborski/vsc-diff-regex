@@ -815,7 +815,7 @@ const traverseDirectoryTree = async (root, p, shouldTakeIntoAccount) => {
                     // @TODO: this shoudln be mutable
                     validUrls = [...validUrls, fileUri];
                 }
-                // przekaz do kolejnega calla obecna acc (pusta tablica xD) i czekaj na zwrocenie acc.
+                // przekaz do kolejnega calla obecna acc (pusta tablica) i czekaj na zwrocenie acc.
                 const nextAcc = go(fileUri, acc).then((nextAcc) => {
                     // polącz z acc
                     validUrls = [...validUrls, ...nextAcc];
@@ -824,7 +824,7 @@ const traverseDirectoryTree = async (root, p, shouldTakeIntoAccount) => {
             }
             resolve(true);
         })));
-        // akumulator obecny i nizsze polaczone to zwroc xD
+        // akumulator obecny i nizsze polaczone - zwroc
         return validUrls;
     };
     const res = await go(root, []);
