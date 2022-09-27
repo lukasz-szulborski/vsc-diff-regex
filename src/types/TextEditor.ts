@@ -1,11 +1,11 @@
 import { FilenameLineHashMap } from "./TextFiles";
 
-export type TextEditorPosition = {
+export type TextEditorInlinePosition = {
   content: string;
   posStart: number;
   posEnd: number;
 };
 
-export type FilenameLineTextEditorPositionHashMap = FilenameLineHashMap<
-  TextEditorPosition[]
+export type FilesPositionsHashMap = FilenameLineHashMap<
+  TextEditorInlinePosition[]
 >;

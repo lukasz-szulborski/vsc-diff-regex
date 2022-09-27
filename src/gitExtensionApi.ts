@@ -2,7 +2,12 @@ import * as vscode from "vscode";
 import * as parseDiff from "parse-diff";
 import * as path from "path";
 
-import { API, APIState, GitExtension, Repository } from "../declarations/git";
+import {
+  API as GitAPI,
+  APIState,
+  GitExtension,
+  Repository,
+} from "../declarations/git";
 import { RepositoryDiffObject, RepositoryFileChange } from "./types";
 import { asyncExec, filenameFromPath } from "./utils";
 
@@ -20,7 +25,7 @@ type RemodelParsedDiffConfig = {
 export default class GitApi {
   private _vscExtension!: vscode.Extension<GitExtension>;
   private _vscGitExtension!: GitExtension;
-  private _vscGitApi!: API;
+  private _vscGitApi!: GitAPI;
   private static _instance: GitApi;
 
   constructor() {
