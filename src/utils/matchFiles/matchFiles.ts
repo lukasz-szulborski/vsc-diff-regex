@@ -5,7 +5,7 @@ type FutureUri = Promise<vscode.Uri[]>;
 
 /**
  * Starting from root Uri (which should be a directory) and traversing down the
- * directroy tree return such Uris sequence that every file identified by this
+ * directory tree return such Uris sequence that every file identified by this
  * sequence's uri passes given predicate and qualification function.
  *
  * Furthermore the function stops directory traversal on a given node when that node

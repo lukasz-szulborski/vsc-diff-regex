@@ -261,7 +261,7 @@ __exportStar(__webpack_require__(6), exports);
 __exportStar(__webpack_require__(9), exports);
 __exportStar(__webpack_require__(11), exports);
 __exportStar(__webpack_require__(13), exports);
-__exportStar(__webpack_require__(33), exports);
+__exportStar(__webpack_require__(15), exports);
 __exportStar(__webpack_require__(35), exports);
 
 
@@ -785,6 +785,28 @@ __exportStar(__webpack_require__(16), exports);
 
 /***/ }),
 /* 16 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findRepositories = void 0;
+const vscode = __webpack_require__(1);
+const matchFiles_1 = __webpack_require__(35);
+const findRepositories = async (root, gitApi, ignoredDirectories) => {
+    vscode.workspace.fs.readDirectory(root);
+    const gitRepositoryDirectories = await (0, matchFiles_1.matchFiles)(root, ([_, filePath]) => gitApi.getRepository(filePath) !== null, ([filename]) => ignoredDirectories === undefined || !ignoredDirectories.includes(filename));
+    return gitRepositoryDirectories.reduce((acc, x) => {
+        return {
+            ...acc,
+            [x.path]: gitApi.getRepository(x),
+        };
+    }, {});
+};
+exports.findRepositories = findRepositories;
+
+
+/***/ }),
+/* 17 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -799,18 +821,37 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(17), exports);
 __exportStar(__webpack_require__(18), exports);
 
 
 /***/ }),
-/* 17 */
+/* 18 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(19), exports);
+__exportStar(__webpack_require__(20), exports);
+
+
+/***/ }),
+/* 19 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(16);
+const _1 = __webpack_require__(18);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -833,7 +874,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -841,8 +882,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(19);
-const types_1 = __webpack_require__(22);
+const Helpers_1 = __webpack_require__(21);
+const types_1 = __webpack_require__(24);
 const utils_1 = __webpack_require__(5);
 var RENDER_STATE;
 (function (RENDER_STATE) {
@@ -1360,7 +1401,7 @@ exports.ActivityBarView = ActivityBarView;
 
 
 /***/ }),
-/* 19 */
+/* 21 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1375,12 +1416,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(20), exports);
-__exportStar(__webpack_require__(21), exports);
+__exportStar(__webpack_require__(22), exports);
+__exportStar(__webpack_require__(23), exports);
 
 
 /***/ }),
-/* 20 */
+/* 22 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1448,7 +1489,7 @@ exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
-/* 21 */
+/* 23 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1465,7 +1506,7 @@ exports.ExtensionConfiguration = ExtensionConfiguration;
 
 
 /***/ }),
-/* 22 */
+/* 24 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1480,18 +1521,18 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(23), exports);
-__exportStar(__webpack_require__(24), exports);
 __exportStar(__webpack_require__(25), exports);
 __exportStar(__webpack_require__(26), exports);
-__exportStar(__webpack_require__(29), exports);
-__exportStar(__webpack_require__(30), exports);
+__exportStar(__webpack_require__(27), exports);
+__exportStar(__webpack_require__(28), exports);
 __exportStar(__webpack_require__(31), exports);
 __exportStar(__webpack_require__(32), exports);
+__exportStar(__webpack_require__(33), exports);
+__exportStar(__webpack_require__(34), exports);
 
 
 /***/ }),
-/* 23 */
+/* 25 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1505,23 +1546,23 @@ var WorkspaceStateKeys;
 
 
 /***/ }),
-/* 24 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 25 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
 /* 26 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 27 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 28 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1536,24 +1577,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(27), exports);
-__exportStar(__webpack_require__(28), exports);
-
-
-/***/ }),
-/* 27 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 28 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(29), exports);
+__exportStar(__webpack_require__(30), exports);
 
 
 /***/ }),
@@ -1586,52 +1611,27 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 33 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 34 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConfigurationKeys = void 0;
 var ConfigurationKeys;
 (function (ConfigurationKeys) {
     ConfigurationKeys["MATCH_BACKGROUND_COLOR"] = "matchBackgroundColor";
 })(ConfigurationKeys = exports.ConfigurationKeys || (exports.ConfigurationKeys = {}));
-
-
-/***/ }),
-/* 33 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(34), exports);
-
-
-/***/ }),
-/* 34 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findRepositories = void 0;
-const vscode = __webpack_require__(1);
-const matchFiles_1 = __webpack_require__(35);
-const findRepositories = async (root, gitApi, ignoredDirectories) => {
-    vscode.workspace.fs.readDirectory(root);
-    const gitRepositoryDirectories = await (0, matchFiles_1.matchFiles)(root, ([_, filePath]) => gitApi.getRepository(filePath) !== null, ([filename]) => ignoredDirectories === undefined || !ignoredDirectories.includes(filename));
-    return gitRepositoryDirectories.reduce((acc, x) => {
-        return {
-            ...acc,
-            [x.path]: gitApi.getRepository(x),
-        };
-    }, {});
-};
-exports.findRepositories = findRepositories;
 
 
 /***/ }),
@@ -1663,7 +1663,7 @@ exports.matchFiles = void 0;
 const vscode = __webpack_require__(1);
 /**
  * Starting from root Uri (which should be a directory) and traversing down the
- * directroy tree return such Uris sequence that every file identified by this
+ * directory tree return such Uris sequence that every file identified by this
  * sequence's uri passes given predicate and qualification function.
  *
  * Furthermore the function stops directory traversal on a given node when that node
@@ -1741,7 +1741,7 @@ exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
 const utils_1 = __webpack_require__(5);
-const Views_1 = __webpack_require__(15);
+const Views_1 = __webpack_require__(17);
 /**
  ******* NOTES *******
  *
