@@ -262,6 +262,7 @@ __exportStar(__webpack_require__(9), exports);
 __exportStar(__webpack_require__(11), exports);
 __exportStar(__webpack_require__(13), exports);
 __exportStar(__webpack_require__(33), exports);
+__exportStar(__webpack_require__(35), exports);
 
 
 /***/ }),
@@ -1619,11 +1620,10 @@ __exportStar(__webpack_require__(34), exports);
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.findRepositories = void 0;
 const vscode = __webpack_require__(1);
+const matchFiles_1 = __webpack_require__(35);
 const findRepositories = async (root, gitApi, ignoredDirectories) => {
     vscode.workspace.fs.readDirectory(root);
-    const gitRepositoryDirectories = await matchFiles(root, ([_, filePath]) => gitApi.getRepository(filePath) !== null, ([filename, __, fileType]) => fileType === vscode.FileType.Directory &&
-        (ignoredDirectories === undefined ||
-            !ignoredDirectories.includes(filename)));
+    const gitRepositoryDirectories = await (0, matchFiles_1.matchFiles)(root, ([_, filePath]) => gitApi.getRepository(filePath) !== null, ([filename]) => ignoredDirectories === undefined || !ignoredDirectories.includes(filename));
     return gitRepositoryDirectories.reduce((acc, x) => {
         return {
             ...acc,
@@ -1632,7 +1632,44 @@ const findRepositories = async (root, gitApi, ignoredDirectories) => {
     }, {});
 };
 exports.findRepositories = findRepositories;
-const matchFiles = async (root, predicate, shouldConsider) => {
+
+
+/***/ }),
+/* 35 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(36), exports);
+
+
+/***/ }),
+/* 36 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.matchFiles = void 0;
+const vscode = __webpack_require__(1);
+/**
+ * Starting from root Uri (which should be a directory) and traversing down the
+ * directroy tree return such Uris sequence that every file identified by this
+ * sequence's uri passes given predicate and qualification function.
+ *
+ * Furthermore the function stops directory traversal on a given node when that node
+ * passes a predicate.
+ */
+const matchFiles = async (root, predicate, qualify) => {
     const go = async (root) => {
         const files = await vscode.workspace.fs.readDirectory(root);
         const results = await Promise.all(files.map(async (file) => new Promise((resolve) => {
@@ -1640,11 +1677,19 @@ const matchFiles = async (root, predicate, shouldConsider) => {
                 scheme: "file",
                 path: `${root.path}/${file[0]}`,
             });
-            const fileWithFullPath = [file[0], fileUri, file[1]];
-            if (shouldConsider === undefined ||
-                shouldConsider(fileWithFullPath)) {
+            const fileWithFullPath = [
+                file[0],
+                fileUri,
+                file[1],
+            ];
+            if (qualify === undefined || qualify(fileWithFullPath)) {
                 if (predicate(fileWithFullPath)) {
                     resolve([fileUri]);
+                    return;
+                }
+                // If it is not a directory there is no way to go deeper.
+                if (file[1] !== vscode.FileType.Directory) {
+                    resolve([]);
                     return;
                 }
                 go(fileUri).then(resolve);
@@ -1655,6 +1700,7 @@ const matchFiles = async (root, predicate, shouldConsider) => {
     };
     return await go(root);
 };
+exports.matchFiles = matchFiles;
 
 
 /***/ })
