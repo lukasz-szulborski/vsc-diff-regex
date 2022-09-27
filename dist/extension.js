@@ -1687,7 +1687,7 @@ const matchFiles = async (root, predicate, qualify) => {
                     resolve([fileUri]);
                     return;
                 }
-                // If it is not a directory there is no way to go deeper.
+                // If it is not a directory then there is no way to go deeper.
                 if (file[1] !== vscode.FileType.Directory) {
                     resolve([]);
                     return;
