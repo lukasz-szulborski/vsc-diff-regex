@@ -1,76 +1,68 @@
 import * as vscode from "vscode";
 import { API as GitAPI, Repository } from "../../../declarations/git";
 
-export const findRepositories = (
+export const findRepositories = async (
   root: vscode.Uri,
-  gitApi: GitAPI
-): Record<string, Repository> => {
+  gitApi: GitAPI,
+  ignoredDirectories?: string[]
+): Promise<Record<string, Repository>> => {
   vscode.workspace.fs.readDirectory(root);
-  traverseDirectoryTree(
+  const gitRepositoryDirectories = await matchFiles(
     root,
-    ({ file: [filePath, fileType] }) => {
-      const repo = gitApi.getRepository(filePath); // To nie powinna byc czesc predykatu o przechodzeniu tylko czesc predykatu o reduktorze
-      return repo !== null;
-    },
-    ({ file: [_, fileType] }) => fileType === vscode.FileType.Directory
+    ([_, filePath]) => gitApi.getRepository(filePath) !== null,
+    ([filename, __, fileType]) =>
+      fileType === vscode.FileType.Directory &&
+      (ignoredDirectories === undefined ||
+        !ignoredDirectories.includes(filename))
   );
-  return {};
+  return gitRepositoryDirectories.reduce<Record<string, Repository>>(
+    (acc, x) => {
+      return {
+        ...acc,
+        [x.path]: gitApi.getRepository(x)!,
+      };
+    },
+    {}
+  );
 };
 
-const traverseDirectoryTree = async (
+const matchFiles = async (
   root: vscode.Uri,
-  p: (ctx: { file: readonly [vscode.Uri, vscode.FileType] }) => Boolean,
-  shouldTakeIntoAccount?: (ctx: {
-    file: readonly [vscode.Uri, vscode.FileType];
-  }) => Boolean
-) => {
-  console.log({ root });
-  const go = async (
-    root: vscode.Uri,
-    acc: vscode.Uri[]
-  ): Promise<vscode.Uri[]> => {
+  predicate: (file: readonly [string, vscode.Uri, vscode.FileType]) => Boolean,
+  shouldConsider?: (
+    file: readonly [string, vscode.Uri, vscode.FileType]
+  ) => Boolean
+): Promise<vscode.Uri[]> => {
+  const go = async (root: vscode.Uri): Promise<vscode.Uri[]> => {
     const files = await vscode.workspace.fs.readDirectory(root);
-    let validUrls: vscode.Uri[] = [];
-
-    await Promise.all(
+    const results = await Promise.all<Promise<vscode.Uri[]>>(
       files.map(
         async (file) =>
-          new Promise((resolve, reject) => {
-            // console.log(`${root.path}/${file[0]}`)
+          new Promise((resolve) => {
             const fileUri = vscode.Uri.from({
               scheme: "file",
               path: `${root.path}/${file[0]}`,
             });
-            // console.log({fileUri})
-            const currentFullFile = [fileUri, file[1]] as const;
+            const fileWithFullPath = [file[0], fileUri, file[1]] as const;
 
             if (
-              shouldTakeIntoAccount === undefined ||
-              shouldTakeIntoAccount({ file: currentFullFile }) === true
+              shouldConsider === undefined ||
+              shouldConsider(fileWithFullPath)
             ) {
-              // kolekcjonuj czy ten wchodzi do akumulatora, rob mnowy akumulator z tym jezelei tak.
-              if (p({ file: currentFullFile }) === true) {
-                // console.log('jest repem :#')
-                // @TODO: this shoudln be mutable
-                validUrls = [...validUrls, fileUri];
+              if (predicate(fileWithFullPath)) {
+                resolve([fileUri]);
+                return;
               }
 
-              // przekaz do kolejnega calla obecna acc (pusta tablica) i czekaj na zwrocenie acc.
-              const nextAcc = go(fileUri, acc).then((nextAcc) => {
-                // polącz z acc
-
-                validUrls = [...validUrls, ...nextAcc];
-                // nic nie rob wiecej
-              });
+              go(fileUri).then(resolve);
             }
-            resolve(true);
+
+            resolve([]);
           })
       )
     );
 
-    // akumulator obecny i nizsze polaczone - zwroc
-    return validUrls;
+    return results.flat();
   };
-  const res = await go(root, []);
-  // console.log({ res });
+  return await go(root);
 };

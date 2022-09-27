@@ -9,7 +9,7 @@ import {
   Repository,
 } from "../declarations/git";
 import { RepositoryDiffObject, RepositoryFileChange } from "./types";
-import { asyncExec, filenameFromPath } from "./utils";
+import { asyncExec, filenameFromPath, findRepositories } from "./utils";
 
 type RemodelParsedDiffConfig = {
   includeUntracked?: boolean;
@@ -151,6 +151,11 @@ export default class GitApi {
   }
 
   public get getWorkspaceMainRepository(): Repository | null {
+    // findRepositories(
+    //   vscode.workspace.workspaceFolders![0].uri,
+    //   this._vscGitApi,
+    //   ["node_modules"]
+    // );
     const mainRepo = this._vscGitApi.getRepository(
       // @TODO: [roadmap] consider multiple workspaces
       vscode.workspace.workspaceFolders![0].uri

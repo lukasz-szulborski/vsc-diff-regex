@@ -123,6 +123,11 @@ class GitApi {
         return this._vscGitApi.state;
     }
     get getWorkspaceMainRepository() {
+        // findRepositories(
+        //   vscode.workspace.workspaceFolders![0].uri,
+        //   this._vscGitApi,
+        //   ["node_modules"]
+        // );
         const mainRepo = this._vscGitApi.getRepository(
         // @TODO: [roadmap] consider multiple workspaces
         vscode.workspace.workspaceFolders[0].uri);
@@ -256,7 +261,7 @@ __exportStar(__webpack_require__(6), exports);
 __exportStar(__webpack_require__(9), exports);
 __exportStar(__webpack_require__(11), exports);
 __exportStar(__webpack_require__(13), exports);
-__exportStar(__webpack_require__(15), exports);
+__exportStar(__webpack_require__(33), exports);
 
 
 /***/ }),
@@ -779,61 +784,6 @@ __exportStar(__webpack_require__(16), exports);
 
 /***/ }),
 /* 16 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findRepositories = void 0;
-const vscode = __webpack_require__(1);
-const findRepositories = (root, gitApi) => {
-    vscode.workspace.fs.readDirectory(root);
-    traverseDirectoryTree(root, ({ file: [filePath, fileType] }) => {
-        const repo = gitApi.getRepository(filePath); // To nie powinna byc czesc predykatu o przechodzeniu tylko czesc predykatu o reduktorze
-        return repo !== null;
-    }, ({ file: [_, fileType] }) => fileType === vscode.FileType.Directory);
-    return {};
-};
-exports.findRepositories = findRepositories;
-const traverseDirectoryTree = async (root, p, shouldTakeIntoAccount) => {
-    console.log({ root });
-    const go = async (root, acc) => {
-        const files = await vscode.workspace.fs.readDirectory(root);
-        let validUrls = [];
-        await Promise.all(files.map(async (file) => new Promise((resolve, reject) => {
-            // console.log(`${root.path}/${file[0]}`)
-            const fileUri = vscode.Uri.from({
-                scheme: "file",
-                path: `${root.path}/${file[0]}`,
-            });
-            // console.log({fileUri})
-            const currentFullFile = [fileUri, file[1]];
-            if (shouldTakeIntoAccount === undefined ||
-                shouldTakeIntoAccount({ file: currentFullFile }) === true) {
-                // kolekcjonuj czy ten wchodzi do akumulatora, rob mnowy akumulator z tym jezelei tak.
-                if (p({ file: currentFullFile }) === true) {
-                    // console.log('jest repem :#')
-                    // @TODO: this shoudln be mutable
-                    validUrls = [...validUrls, fileUri];
-                }
-                // przekaz do kolejnega calla obecna acc (pusta tablica) i czekaj na zwrocenie acc.
-                const nextAcc = go(fileUri, acc).then((nextAcc) => {
-                    // polącz z acc
-                    validUrls = [...validUrls, ...nextAcc];
-                    // nic nie rob wiecej
-                });
-            }
-            resolve(true);
-        })));
-        // akumulator obecny i nizsze polaczone - zwroc
-        return validUrls;
-    };
-    const res = await go(root, []);
-    // console.log({ res });
-};
-
-
-/***/ }),
-/* 17 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -848,37 +798,18 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(17), exports);
 __exportStar(__webpack_require__(18), exports);
 
 
 /***/ }),
-/* 18 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(19), exports);
-__exportStar(__webpack_require__(20), exports);
-
-
-/***/ }),
-/* 19 */
+/* 17 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(18);
+const _1 = __webpack_require__(16);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -901,7 +832,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 20 */
+/* 18 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -909,8 +840,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(21);
-const types_1 = __webpack_require__(24);
+const Helpers_1 = __webpack_require__(19);
+const types_1 = __webpack_require__(22);
 const utils_1 = __webpack_require__(5);
 var RENDER_STATE;
 (function (RENDER_STATE) {
@@ -1428,7 +1359,7 @@ exports.ActivityBarView = ActivityBarView;
 
 
 /***/ }),
-/* 21 */
+/* 19 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1443,12 +1374,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(22), exports);
-__exportStar(__webpack_require__(23), exports);
+__exportStar(__webpack_require__(20), exports);
+__exportStar(__webpack_require__(21), exports);
 
 
 /***/ }),
-/* 22 */
+/* 20 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1516,7 +1447,7 @@ exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
-/* 23 */
+/* 21 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1533,7 +1464,7 @@ exports.ExtensionConfiguration = ExtensionConfiguration;
 
 
 /***/ }),
-/* 24 */
+/* 22 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1548,18 +1479,18 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(23), exports);
+__exportStar(__webpack_require__(24), exports);
 __exportStar(__webpack_require__(25), exports);
 __exportStar(__webpack_require__(26), exports);
-__exportStar(__webpack_require__(27), exports);
-__exportStar(__webpack_require__(28), exports);
+__exportStar(__webpack_require__(29), exports);
+__exportStar(__webpack_require__(30), exports);
 __exportStar(__webpack_require__(31), exports);
 __exportStar(__webpack_require__(32), exports);
-__exportStar(__webpack_require__(33), exports);
-__exportStar(__webpack_require__(34), exports);
 
 
 /***/ }),
-/* 25 */
+/* 23 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -1573,23 +1504,23 @@ var WorkspaceStateKeys;
 
 
 /***/ }),
+/* 24 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 25 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
 /* 26 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 27 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 28 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1604,8 +1535,24 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(29), exports);
-__exportStar(__webpack_require__(30), exports);
+__exportStar(__webpack_require__(27), exports);
+__exportStar(__webpack_require__(28), exports);
+
+
+/***/ }),
+/* 27 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 28 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 /***/ }),
@@ -1638,27 +1585,76 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 33 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 34 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConfigurationKeys = void 0;
 var ConfigurationKeys;
 (function (ConfigurationKeys) {
     ConfigurationKeys["MATCH_BACKGROUND_COLOR"] = "matchBackgroundColor";
 })(ConfigurationKeys = exports.ConfigurationKeys || (exports.ConfigurationKeys = {}));
+
+
+/***/ }),
+/* 33 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(34), exports);
+
+
+/***/ }),
+/* 34 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findRepositories = void 0;
+const vscode = __webpack_require__(1);
+const findRepositories = async (root, gitApi, ignoredDirectories) => {
+    vscode.workspace.fs.readDirectory(root);
+    const gitRepositoryDirectories = await matchFiles(root, ([_, filePath]) => gitApi.getRepository(filePath) !== null, ([filename, __, fileType]) => fileType === vscode.FileType.Directory &&
+        (ignoredDirectories === undefined ||
+            !ignoredDirectories.includes(filename)));
+    return gitRepositoryDirectories.reduce((acc, x) => {
+        return {
+            ...acc,
+            [x.path]: gitApi.getRepository(x),
+        };
+    }, {});
+};
+exports.findRepositories = findRepositories;
+const matchFiles = async (root, predicate, shouldConsider) => {
+    const go = async (root) => {
+        const files = await vscode.workspace.fs.readDirectory(root);
+        const results = await Promise.all(files.map(async (file) => new Promise((resolve) => {
+            const fileUri = vscode.Uri.from({
+                scheme: "file",
+                path: `${root.path}/${file[0]}`,
+            });
+            const fileWithFullPath = [file[0], fileUri, file[1]];
+            if (shouldConsider === undefined ||
+                shouldConsider(fileWithFullPath)) {
+                if (predicate(fileWithFullPath)) {
+                    resolve([fileUri]);
+                    return;
+                }
+                go(fileUri).then(resolve);
+            }
+            resolve([]);
+        })));
+        return results.flat();
+    };
+    return await go(root);
+};
 
 
 /***/ })
@@ -1699,7 +1695,7 @@ exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
 const utils_1 = __webpack_require__(5);
-const Views_1 = __webpack_require__(17);
+const Views_1 = __webpack_require__(15);
 /**
  ******* NOTES *******
  *
