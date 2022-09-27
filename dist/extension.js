@@ -1672,15 +1672,15 @@ const vscode = __webpack_require__(1);
 const matchFiles = async (root, predicate, qualify) => {
     const go = async (root) => {
         const files = await vscode.workspace.fs.readDirectory(root);
-        const results = await Promise.all(files.map(async (file) => new Promise((resolve) => {
+        const results = await Promise.all(files.map(async ([filename, fileType]) => new Promise((resolve) => {
             const fileUri = vscode.Uri.from({
                 scheme: "file",
-                path: `${root.path}/${file[0]}`,
+                path: `${root.path}/${filename}`,
             });
             const fileWithFullPath = [
-                file[0],
+                filename,
                 fileUri,
-                file[1],
+                fileType,
             ];
             if (qualify === undefined || qualify(fileWithFullPath)) {
                 if (predicate(fileWithFullPath)) {
@@ -1688,7 +1688,7 @@ const matchFiles = async (root, predicate, qualify) => {
                     return;
                 }
                 // If it is not a directory then there is no way to go deeper.
-                if (file[1] !== vscode.FileType.Directory) {
+                if (fileType !== vscode.FileType.Directory) {
                     resolve([]);
                     return;
                 }

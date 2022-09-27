@@ -21,16 +21,16 @@ export const matchFiles = async (
     const files = await vscode.workspace.fs.readDirectory(root);
     const results = await Promise.all<FutureUri>(
       files.map(
-        async (file) =>
+        async ([filename, fileType]) =>
           new Promise((resolve) => {
             const fileUri = vscode.Uri.from({
               scheme: "file",
-              path: `${root.path}/${file[0]}`,
+              path: `${root.path}/${filename}`,
             });
             const fileWithFullPath: ContextFile = [
-              file[0],
+              filename,
               fileUri,
-              file[1],
+              fileType,
             ] as const;
 
             if (qualify === undefined || qualify(fileWithFullPath)) {
@@ -40,7 +40,7 @@ export const matchFiles = async (
               }
 
               // If it is not a directory then there is no way to go deeper.
-              if (file[1] !== vscode.FileType.Directory) {
+              if (fileType !== vscode.FileType.Directory) {
                 resolve([]);
                 return;
               }
