@@ -6,3 +6,4 @@ export * from "./diff";
 export * from "./TextFiles";
 export * from "./TextEditor";
 export * from "./ConfigurationKeys";
+export * from "./git";

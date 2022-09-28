@@ -74,53 +74,109 @@ function clearResultsContainer() {
  * Dealing with a plain js would result in a rather messy code.
  *
  */
-function handleNewResults(matches) {
+function handleNewResults(matchesInRepositories) {
   clearResultsContainer(); // Clear previous results.
-  // @NOTE: in future matches will be contained in many workspaces.
-  if (Array.isArray(matches)) {
-    // Each match is a different file containing many lines with "add" changes.
-    matches.forEach((match) => {
-      // If this file doesn't have any changes that should be displayed then skip the whole file.
-      if (!match.changes.find((c) => c.isVisible === true)) return;
+  // @TODO: work in progress - showing multiple repositories
+  for (const repoPath in matchesInRepositories) {
+    const matches = matchesInRepositories[repoPath];
+    const repoPathNoSlash = repoPath.replace(/^\//g, "");
+    if (Array.isArray(matches)) {
+      // Each match is a different file containing many lines with "add" changes.
+      matches.forEach((match) => {
+        // If this file doesn't have any changes that should be displayed then skip the whole file.
+        if (!match.changes.find((c) => c.isVisible === true)) return;
 
-      const fullFilename = `${match.fileName.name}.${match.fileName.extension}`;
-      // Create file element
-      const fileDomElement = redom.el("div.results-container__file", [
-        // Create header for file element.
-        redom.el("div.results-container__file-header", [
-          // Create header contents.
-          redom.el("a.results-container__file-header-icon", [
-            redom.el(`div.${FileIcons.getClassWithColor(fullFilename)}`),
-          ]),
-          redom.el(
-            "span.results-container__file-header-name",
-            { title: match.filePath },
-            redom.text(fullFilename)
-          ),
-        ]),
-        // Create container for lines.
-        redom.el(
-          "div.results-container__file-lines-container",
-          // Create lines.
-          match.changes.map((change) => {
-            if (!change.isVisible) return;
+        const fullFilename = `${match.fileName.name}.${match.fileName.extension}`;
 
-            const lineElement = redom.el("div.results-container__file-line", [
-              redom.el("span.results-container__file-line-change", [
-                redom.text(change.content),
+        const repositoryDomElement = redom.el(
+          "div.results-container__repository",
+          [
+            Object.entries(matchesInRepositories).length > 1
+              ? redom.el("div.results-container__repository-name-container", [
+                  redom.el(
+                    "span.results-container__repository-name",
+                    { title: repoPathNoSlash },
+                    redom.text(repoPathNoSlash.split("/").pop())
+                  ),
+                ])
+              : undefined,
+            redom.el("div.results-container__file", [
+              // Create header for file element.
+              redom.el("div.results-container__file-header", [
+                // Create header contents.
+                redom.el("a.results-container__file-header-icon", [
+                  redom.el(`div.${FileIcons.getClassWithColor(fullFilename)}`),
+                ]),
+                redom.el(
+                  "span.results-container__file-header-name",
+                  { title: match.filePath },
+                  redom.text(fullFilename)
+                ),
               ]),
-              redom.text(change.line + 1),
-            ]);
-            lineElement.addEventListener("click", function () {
-              handleLineChangeClick(change, match.fullFilePath);
-            });
-            return lineElement;
-          })
-        ),
-      ]);
-      // Insert file element into a container. (In future a workspace)
-      resultsContainer.appendChild(fileDomElement);
-    });
+              // Create container for lines.
+              redom.el(
+                "div.results-container__file-lines-container",
+                // Create lines.
+                match.changes.map((change) => {
+                  if (!change.isVisible) return;
+
+                  const lineElement = redom.el(
+                    "div.results-container__file-line",
+                    [
+                      redom.el("span.results-container__file-line-change", [
+                        redom.text(change.content),
+                      ]),
+                      redom.text(change.line + 1),
+                    ]
+                  );
+                  lineElement.addEventListener("click", function () {
+                    handleLineChangeClick(change, match.fullFilePath);
+                  });
+                  return lineElement;
+                })
+              ),
+            ]),
+          ]
+        );
+
+        // Create file element
+        // const fileDomElement = redom.el("div.results-container__file", [
+        //   // Create header for file element.
+        //   redom.el("div.results-container__file-header", [
+        //     // Create header contents.
+        //     redom.el("a.results-container__file-header-icon", [
+        //       redom.el(`div.${FileIcons.getClassWithColor(fullFilename)}`),
+        //     ]),
+        //     redom.el(
+        //       "span.results-container__file-header-name",
+        //       { title: match.filePath },
+        //       redom.text(fullFilename)
+        //     ),
+        //   ]),
+        //   // Create container for lines.
+        //   redom.el(
+        //     "div.results-container__file-lines-container",
+        //     // Create lines.
+        //     match.changes.map((change) => {
+        //       if (!change.isVisible) return;
+
+        //       const lineElement = redom.el("div.results-container__file-line", [
+        //         redom.el("span.results-container__file-line-change", [
+        //           redom.text(change.content),
+        //         ]),
+        //         redom.text(change.line + 1),
+        //       ]);
+        //       lineElement.addEventListener("click", function () {
+        //         handleLineChangeClick(change, match.fullFilePath);
+        //       });
+        //       return lineElement;
+        //     })
+        //   ),
+        // ]);
+        // Insert file element into a container. (In future a workspace)
+        resultsContainer.appendChild(repositoryDomElement);
+      });
+    }
   }
 }
 

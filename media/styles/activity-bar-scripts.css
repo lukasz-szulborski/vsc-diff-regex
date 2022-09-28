@@ -19,7 +19,7 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .results-container__file-header-icon {
@@ -60,4 +60,21 @@ body {
   margin-right: 3px;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.results-container__repository {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 5px;
+}
+.results-container__repository-name-container {
+  display: flex;
+  margin-bottom: 8px;
+}
+.results-container__repository-name {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.9rem;
 }

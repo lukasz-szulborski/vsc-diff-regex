@@ -52,7 +52,7 @@ class GitApi {
             return false;
         }
     }
-    async parseDiff(config) {
+    async parseDiffs(config) {
         const getConfigurationProperty = (key, config) => {
             const configExists = config !== undefined;
             return (!configExists ||
@@ -61,60 +61,68 @@ class GitApi {
         const includeUntracked = getConfigurationProperty("includeUntracked", config);
         const cleanAddChange = getConfigurationProperty("cleanAddChange", config);
         const cleanDelChange = getConfigurationProperty("cleanDelChange", config);
-        const parsedDiff = await this.diffToObject();
-        const results = [];
-        // Include changes from `git diff`
-        if (parsedDiff) {
-            parsedDiff.diffs.forEach((file, i) => {
-                const parsedChangedFile = {
-                    changes: file.chunks.flatMap((chunk) => {
-                        return chunk.changes
-                            .filter((change) => change.content !== `\\ No newline at end of file`)
-                            .map((change) => {
-                            if (this.isParseDiffChangeAdd(change)) {
-                                return {
-                                    line: change.ln - 1,
-                                    content: cleanAddChange
-                                        ? change.content.replace(/^\+/g, "")
-                                        : change.content,
-                                    type: "add",
-                                    isVisible: true,
-                                };
-                            }
-                            else if (this.isParseDiffChangeDelete(change)) {
-                                return {
-                                    line: change.ln - 1,
-                                    content: cleanDelChange
-                                        ? change.content.replace(/^\-/g, "")
-                                        : change.content,
-                                    type: "del",
-                                    isVisible: false,
-                                };
-                            }
-                            else {
-                                return {
-                                    line: change.ln1 - 1,
-                                    content: change.content,
-                                    type: "normal",
-                                    isVisible: false,
-                                };
-                            }
-                        });
-                    }),
-                    // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
-                    filePath: file.from,
-                    fileName: (0, utils_1.filenameFromPath)(file.from),
-                    fullFilePath: `${parsedDiff.repository.rootUri.path}/${file.from}`,
-                };
-                results.push(parsedChangedFile);
+        const parsedDiffs = await this.diffsToObject();
+        const changesInRepositories = await Promise.all(Object.entries(parsedDiffs)
+            .map(([path]) => path)
+            .map((repoPath) => new Promise(async (resolve) => {
+            const parsedDiff = parsedDiffs[repoPath];
+            const results = [];
+            // Include changes from `git diff`
+            if (parsedDiff) {
+                parsedDiff.diffs.forEach((file) => {
+                    const parsedChangedFile = {
+                        changes: file.chunks.flatMap((chunk) => {
+                            return chunk.changes
+                                .filter((change) => change.content !== `\\ No newline at end of file`)
+                                .map((change) => {
+                                if (this.isParseDiffChangeAdd(change)) {
+                                    return {
+                                        line: change.ln - 1,
+                                        content: cleanAddChange
+                                            ? change.content.replace(/^\+/g, "")
+                                            : change.content,
+                                        type: "add",
+                                        isVisible: true,
+                                    };
+                                }
+                                else if (this.isParseDiffChangeDelete(change)) {
+                                    return {
+                                        line: change.ln - 1,
+                                        content: cleanDelChange
+                                            ? change.content.replace(/^\-/g, "")
+                                            : change.content,
+                                        type: "del",
+                                        isVisible: false,
+                                    };
+                                }
+                                else {
+                                    return {
+                                        line: change.ln1 - 1,
+                                        content: change.content,
+                                        type: "normal",
+                                        isVisible: false,
+                                    };
+                                }
+                            });
+                        }),
+                        // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
+                        filePath: file.from,
+                        fileName: (0, utils_1.filenameFromPath)(file.from),
+                        fullFilePath: `${parsedDiff.repository.rootUri.path}/${file.from}`,
+                    };
+                    results.push(parsedChangedFile);
+                });
+            }
+            // Also include untracked files (included by default)
+            if (includeUntracked) {
+                const untrackedChanges = await this.parseUntrackedFilesInWorkspace(repoPath);
+                results.push(...untrackedChanges);
+            }
+            resolve({
+                [repoPath]: results,
             });
-        }
-        // Also include untracked files (included by default)
-        if (includeUntracked) {
-            const untrackedChanges = await this.parseUntrackedFilesInWorkspace();
-            results.push(...untrackedChanges);
-        }
-        return results;
+        })));
+        return changesInRepositories.reduce((acc, x) => ({ ...acc, ...x }), {});
     }
     onDidChangeState(cb) {
         this._vscGitApi.onDidChangeState(cb);
@@ -122,53 +130,53 @@ class GitApi {
     get getState() {
         return this._vscGitApi.state;
     }
-    get getWorkspaceMainRepository() {
-        // findRepositories(
-        //   vscode.workspace.workspaceFolders![0].uri,
-        //   this._vscGitApi,
-        //   ["node_modules"]
-        // );
-        const mainRepo = this._vscGitApi.getRepository(
-        // @TODO: [roadmap] consider multiple workspaces
-        vscode.workspace.workspaceFolders[0].uri);
-        return mainRepo;
+    async getWorkspaceRepositories() {
+        const rootUri = vscode.workspace.workspaceFolders[0].uri;
+        const rootRepo = this._vscGitApi.getRepository(rootUri);
+        if (rootRepo !== null) {
+            return {
+                [rootUri.path]: rootRepo,
+            };
+        }
+        return await (0, utils_1.findRepositories)(rootUri, this._vscGitApi, ["node_modules"]);
     }
     /*************
      *  Private  *
      *************/
     /**
      * Get file diffs in workspace repositories.
-     *
      */
-    async diffToObject() {
-        const repository = this.getWorkspaceMainRepository;
-        if (repository) {
+    // working
+    async diffsToObject() {
+        const repositories = await this.getWorkspaceRepositories();
+        const result = await Promise.all(Object.keys(repositories).map((repoPath) => new Promise(async (resolve) => {
+            const repository = repositories[repoPath];
             const result = parseDiff(await repository.diff());
-            return {
-                diffs: result,
-                repository,
-            };
-        }
-        return undefined;
+            resolve({
+                [repoPath]: {
+                    diffs: result,
+                    repository,
+                },
+            });
+        })));
+        return result.reduce((acc, x) => ({ ...acc, ...x }), {});
     }
-    async parseUntrackedFilesInWorkspace() {
+    async parseUntrackedFilesInWorkspace(directoryPath) {
         try {
             const result = [];
-            // @TODO: [roadmap] consider multiple workspaces
-            let workspacePath = vscode.workspace.workspaceFolders[0].uri.path;
-            workspacePath = workspacePath.replace(/^\//g, "");
+            const cleanedDirectoryPath = directoryPath.replace(/^\//g, "");
             // Exec command.
-            const commandResult = await (0, utils_1.asyncExec)(`git -C "${workspacePath}" ls-files -o --exclude-standard`);
+            const commandResult = await (0, utils_1.asyncExec)(`git -C "${cleanedDirectoryPath}" ls-files -o --exclude-standard`);
             // Get untracked files paths from command result string.
             const filePaths = commandResult
                 .trim()
                 .split("\n")
-                .map((filename) => path.join(workspacePath, filename).replace(/\\/g, "/"));
+                .map((filename) => path.join(cleanedDirectoryPath, filename).replace(/\\/g, "/"));
             // Prepare for getting file contents.
             const contentGetters = [];
             filePaths.forEach((path) => {
                 const relativeFilePath = path
-                    .replace(workspacePath, "")
+                    .replace(cleanedDirectoryPath, "")
                     .replace(/^\//g, "");
                 // Prepare Promises that will retrieve  file contents.
                 contentGetters.push(new Promise(async (resolve) => {
@@ -1037,9 +1045,21 @@ class ActivityBarView {
     }
     async _getAndApplyChanges() {
         const changes = await this._getFilesChanges();
-        this._paintDecorationsInTextEditors(changes[0]);
-        this._postChangesToWebview(changes[1]);
-        await this._saveInStorage(types_1.WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS, JSON.stringify(changes[0]));
+        const [positions, repoChanges] = Object.entries(changes).reduce((acc, [repoPath, data]) => {
+            return [
+                {
+                    ...acc[0],
+                    ...data[0],
+                },
+                {
+                    ...acc[1],
+                    [repoPath]: data[1],
+                },
+            ];
+        }, [{}, {}]);
+        this._paintDecorationsInTextEditors(positions);
+        this._postChangesToWebview(repoChanges);
+        await this._saveInStorage(types_1.WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS, JSON.stringify(positions));
     }
     /**
      * Open text document in an editor.
@@ -1058,10 +1078,9 @@ class ActivityBarView {
             console.log(error);
         }
     }
-    _handleGitApiInitialized() {
-        // @TODO: [roadmap] consider multiple workspaces
-        const repository = this._gitApi.getWorkspaceMainRepository;
-        if (repository) {
+    async _handleGitApiInitialized() {
+        const repositories = await this._gitApi.getWorkspaceRepositories();
+        if (repositories && Object.entries(repositories).length > 0) {
             this._updateLoadingState("gitRepositories", false);
         }
         else {
@@ -1222,7 +1241,7 @@ class ActivityBarView {
     async _getFilesChanges() {
         const searchInputValue = this._getSearchInputFromState;
         if (searchInputValue === null || searchInputValue.length === 0) {
-            return [{}, []];
+            return {};
         }
         /*
           -----              -----
@@ -1237,87 +1256,97 @@ class ActivityBarView {
           * Now, first phase of parsing is done. We have javascript objects that facilitate further manipulations.
         */
         // Run and parse `git diff`.
-        const diff = await this._gitApi.parseDiff();
-        // Filter with saved regex term.
-        const filteredChanges = [];
-        // Containing filtered changes (File name -> change line -> change) Hash map. Index to process changes within a single line easier.
-        const filteredChangesHashMap = {};
+        const diffs = await this._gitApi.parseDiffs();
         const searchedTermRegex = new RegExp(searchInputValue ?? "");
-        diff.forEach((changedFile) => {
-            let newIndex = undefined;
-            changedFile.changes.forEach((fileChange) => {
-                /*
-                  @NOTE: in future make it a changeable option. This is possible that someone will want to use regexp in context of whole line.
-                  Also @NOTE that letting all lines in may introduce some computation overhead, monitor this part of the code when some performance problems arise in the future.
-                */
-                if (fileChange.type === "add" /*&&
-                  fileChange.content.match(searchedTermRegex) !== null*/
-                    ||
-                        fileChange.type === "del") {
-                    // Create different object types for changed files. Later it will be easier to reason about this changed files.
-                    if (newIndex === undefined) {
-                        // First change in a file matched.
-                        newIndex =
-                            filteredChanges.push({
-                                filePath: changedFile.filePath,
-                                fileName: changedFile.fileName,
-                                fullFilePath: changedFile.fullFilePath,
-                                changes: [fileChange],
-                            }) - 1;
+        const positionsAndChanges = await Promise.all(Object.keys(diffs).map((repoPath) => new Promise(async (resolve) => {
+            const diff = diffs[repoPath];
+            // Filter with saved regex term.
+            const filteredChanges = [];
+            // Contains filtered changes (File name -> change line -> change) hash map. Index to process changes within a single line easier.
+            const filteredChangesHashMap = {};
+            diff.forEach((changedFile) => {
+                let newIndex = undefined;
+                changedFile.changes.forEach((fileChange) => {
+                    /*
+                      @NOTE: in future make it a changeable option. This is possible that someone will want to use regexp in context of whole line.
+                      Also @NOTE that letting all lines in may introduce some computation overhead, monitor this part of the code when some performance problems arise in the future.
+                    */
+                    if (fileChange.type === "add" || fileChange.type === "del") {
+                        // Create different object types for changed files. Later it will be easier to reason about this changed files.
+                        if (newIndex === undefined) {
+                            // First change in a file matched.
+                            newIndex =
+                                filteredChanges.push({
+                                    filePath: changedFile.filePath,
+                                    fileName: changedFile.fileName,
+                                    fullFilePath: changedFile.fullFilePath,
+                                    changes: [fileChange],
+                                }) - 1;
+                        }
+                        else {
+                            // Rest of the changes matched in a file.
+                            filteredChanges[newIndex].changes.push(fileChange);
+                        }
+                        // Index (aggregation) per changed file per line.
+                        if (!filteredChangesHashMap[changedFile.fullFilePath])
+                            filteredChangesHashMap[changedFile.fullFilePath] = {};
+                        if (!filteredChangesHashMap[changedFile.fullFilePath][fileChange.line])
+                            filteredChangesHashMap[changedFile.fullFilePath][fileChange.line] = [];
+                        filteredChangesHashMap[changedFile.fullFilePath][fileChange.line].push(fileChange);
                     }
-                    else {
-                        // Rest of the changes matched in a file.
-                        filteredChanges[newIndex].changes.push(fileChange);
-                    }
-                    // Index (aggregation) per changed file per line.
-                    if (!filteredChangesHashMap[changedFile.fullFilePath])
-                        filteredChangesHashMap[changedFile.fullFilePath] = {};
-                    if (!filteredChangesHashMap[changedFile.fullFilePath][fileChange.line])
-                        filteredChangesHashMap[changedFile.fullFilePath][fileChange.line] =
-                            [];
-                    filteredChangesHashMap[changedFile.fullFilePath][fileChange.line].push(fileChange);
-                }
+                });
             });
-        });
-        /*
-          -----                           -----
-          -- EXTRACTING POSITIONS SUBROUTINE --
-          -----                           -----
-    
-          It will extract specific changed positions that match searched term and further filter changes by this term.
-    
-          * First of all we need to make sure that lines that doesn't contain searched term strictly in *changes* (meaning changed indexes of a string) will be eventually filtered out (filter lines that contain searched term but not in changes). See `changedLinesThatDidntMatchTerm` dictionary.
-          * Find added positions in changed lines.
-        */
-        // Collect positions where searched term occur.
-        const changedLinesThatDidntMatchTerm = {};
-        const editorPositionsFromFilenameLineChangeHashMap = this._getEditorPositionsFromFilenameLineChangeHashMap({
-            changesHashMap: filteredChangesHashMap,
-            searchedTerm: searchedTermRegex,
-            // Find changes that don't match searched term.
-            onLineChangeEncountered: ({ didMatch, fileName, line }) => {
-                if (didMatch) {
-                    return;
+            /*
+              -----                           -----
+              -- EXTRACTING POSITIONS SUBROUTINE --
+              -----                           -----
+        
+              It will extract specific changed positions that match searched term and further filter changes by this term.
+        
+              * First of all we need to make sure that lines that doesn't contain searched term strictly in *changes* (meaning changed indexes of a string) will be eventually filtered out (filter lines that contain searched term but not in changes). See `changedLinesThatDidntMatchTerm` dictionary.
+              * Find added positions in changed lines.
+            */
+            // Collect positions where searched term occur.
+            const changedLinesThatDidntMatchTerm = {};
+            const editorPositionsFromFilenameLineChangeHashMap = this._getEditorPositionsFromFilenameLineChangeHashMap({
+                changesHashMap: filteredChangesHashMap,
+                searchedTerm: searchedTermRegex,
+                // Find changes that don't match searched term.
+                onLineChangeEncountered: ({ didMatch, fileName, line }) => {
+                    if (didMatch) {
+                        return;
+                    }
+                    if (!changedLinesThatDidntMatchTerm[fileName]) {
+                        changedLinesThatDidntMatchTerm[fileName] = [];
+                    }
+                    changedLinesThatDidntMatchTerm[fileName].push(line);
+                },
+            });
+            // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
+            const fullyFilteredChanges = filteredChanges.map((fileChange) => {
+                const linesToRemove = changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
+                if (!linesToRemove ||
+                    !Array.isArray(linesToRemove) ||
+                    linesToRemove.length === 0) {
+                    return fileChange;
                 }
-                if (!changedLinesThatDidntMatchTerm[fileName]) {
-                    changedLinesThatDidntMatchTerm[fileName] = [];
-                }
-                changedLinesThatDidntMatchTerm[fileName].push(line);
-            },
-        });
-        // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
-        const fullyFilteredChanges = filteredChanges.map((fileChange) => {
-            const linesToRemove = changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
-            if (!linesToRemove ||
-                !Array.isArray(linesToRemove) ||
-                linesToRemove.length === 0) {
-                return fileChange;
-            }
-            const updatedFileChange = { ...fileChange };
-            updatedFileChange.changes = fileChange.changes.filter((change) => !linesToRemove.includes(change.line));
-            return updatedFileChange;
-        });
-        return [editorPositionsFromFilenameLineChangeHashMap, fullyFilteredChanges];
+                const updatedFileChange = {
+                    ...fileChange,
+                };
+                updatedFileChange.changes = fileChange.changes.filter((change) => !linesToRemove.includes(change.line));
+                return updatedFileChange;
+            });
+            resolve({
+                [repoPath]: [
+                    editorPositionsFromFilenameLineChangeHashMap,
+                    fullyFilteredChanges,
+                ],
+            });
+        })));
+        return positionsAndChanges.reduce((acc, x) => ({
+            ...acc,
+            ...x,
+        }), {});
     }
     /**
      * Generate Webview HTML basing on current View state.
@@ -1347,7 +1376,7 @@ class ActivityBarView {
                     <meta name="viewport" content="width=device-width,initial-scale=1.0">
                 </head>
                 <body>
-                    It looks like you don't have any repositories inside opened workspaces.
+                    It looks like you don't have any repositories inside opened directory.
                 </body>
             </html>
         `;
@@ -1529,6 +1558,7 @@ __exportStar(__webpack_require__(31), exports);
 __exportStar(__webpack_require__(32), exports);
 __exportStar(__webpack_require__(33), exports);
 __exportStar(__webpack_require__(34), exports);
+__exportStar(__webpack_require__(37), exports);
 
 
 /***/ }),
@@ -1701,6 +1731,14 @@ const matchFiles = async (root, predicate, qualify) => {
     return await go(root);
 };
 exports.matchFiles = matchFiles;
+
+
+/***/ }),
+/* 37 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 /***/ })

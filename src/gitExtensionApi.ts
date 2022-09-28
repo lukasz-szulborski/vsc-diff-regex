@@ -2,13 +2,12 @@ import * as vscode from "vscode";
 import * as parseDiff from "parse-diff";
 import * as path from "path";
 
+import { API as GitAPI, APIState, GitExtension } from "../declarations/git";
 import {
-  API as GitAPI,
-  APIState,
-  GitExtension,
-  Repository,
-} from "../declarations/git";
-import { RepositoryDiffObject, RepositoryFileChange } from "./types";
+  FilePathRepoHashMap,
+  RepositoryDiffObject,
+  RepositoryFileChange,
+} from "./types";
 import { asyncExec, filenameFromPath, findRepositories } from "./utils";
 
 type RemodelParsedDiffConfig = {
@@ -59,9 +58,9 @@ export default class GitApi {
     }
   }
 
-  public async parseDiff(
+  public async parseDiffs(
     config?: RemodelParsedDiffConfig
-  ): Promise<RepositoryFileChange[]> {
+  ): Promise<Record<string, RepositoryFileChange[]>> {
     const getConfigurationProperty = (
       key: keyof RemodelParsedDiffConfig,
       config?: RemodelParsedDiffConfig
@@ -81,65 +80,83 @@ export default class GitApi {
     const cleanAddChange = getConfigurationProperty("cleanAddChange", config);
     const cleanDelChange = getConfigurationProperty("cleanDelChange", config);
 
-    const parsedDiff = await this.diffToObject();
+    const parsedDiffs = await this.diffsToObject();
 
-    const results: RepositoryFileChange[] = [];
+    const changesInRepositories = await Promise.all<
+      Record<string, RepositoryFileChange[]>
+    >(
+      Object.entries(parsedDiffs)
+        .map(([path]) => path)
+        .map(
+          (repoPath) =>
+            new Promise(async (resolve) => {
+              const parsedDiff = parsedDiffs[repoPath];
+              const results: RepositoryFileChange[] = [];
 
-    // Include changes from `git diff`
-    if (parsedDiff) {
-      parsedDiff.diffs.forEach((file, i) => {
-        const parsedChangedFile: RepositoryFileChange = {
-          changes: file.chunks.flatMap((chunk) => {
-            return chunk.changes
-              .filter(
-                (change) => change.content !== `\\ No newline at end of file`
-              )
-              .map((change) => {
-                if (this.isParseDiffChangeAdd(change)) {
-                  return {
-                    line: change.ln - 1,
-                    content: cleanAddChange
-                      ? change.content.replace(/^\+/g, "")
-                      : change.content,
-                    type: "add",
-                    isVisible: true,
+              // Include changes from `git diff`
+              if (parsedDiff) {
+                parsedDiff.diffs.forEach((file) => {
+                  const parsedChangedFile: RepositoryFileChange = {
+                    changes: file.chunks.flatMap((chunk) => {
+                      return chunk.changes
+                        .filter(
+                          (change) =>
+                            change.content !== `\\ No newline at end of file`
+                        )
+                        .map((change) => {
+                          if (this.isParseDiffChangeAdd(change)) {
+                            return {
+                              line: change.ln - 1,
+                              content: cleanAddChange
+                                ? change.content.replace(/^\+/g, "")
+                                : change.content,
+                              type: "add",
+                              isVisible: true,
+                            };
+                          } else if (this.isParseDiffChangeDelete(change)) {
+                            return {
+                              line: change.ln - 1,
+                              content: cleanDelChange
+                                ? change.content.replace(/^\-/g, "")
+                                : change.content,
+                              type: "del",
+                              isVisible: false,
+                            };
+                          } else {
+                            return {
+                              line: change.ln1 - 1,
+                              content: change.content,
+                              type: "normal",
+                              isVisible: false,
+                            };
+                          }
+                        });
+                    }),
+                    // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
+                    filePath: file.from!,
+                    fileName: filenameFromPath(file.from!),
+                    fullFilePath: `${
+                      parsedDiff.repository.rootUri.path
+                    }/${file.from!}`,
                   };
-                } else if (this.isParseDiffChangeDelete(change)) {
-                  return {
-                    line: change.ln - 1,
-                    content: cleanDelChange
-                      ? change.content.replace(/^\-/g, "")
-                      : change.content,
-                    type: "del",
-                    isVisible: false,
-                  };
-                } else {
-                  return {
-                    line: change.ln1 - 1,
-                    content: change.content,
-                    type: "normal",
-                    isVisible: false,
-                  };
-                }
+                  results.push(parsedChangedFile);
+                });
+              }
+
+              // Also include untracked files (included by default)
+              if (includeUntracked) {
+                const untrackedChanges: RepositoryFileChange[] =
+                  await this.parseUntrackedFilesInWorkspace(repoPath);
+                results.push(...untrackedChanges);
+              }
+
+              resolve({
+                [repoPath]: results,
               });
-          }),
-          // @NOTE: extension blocks cases where `git diff` cannot be parsed by parse-diff
-          filePath: file.from!,
-          fileName: filenameFromPath(file.from!),
-          fullFilePath: `${parsedDiff.repository.rootUri.path}/${file.from!}`,
-        };
-        results.push(parsedChangedFile);
-      });
-    }
-
-    // Also include untracked files (included by default)
-    if (includeUntracked) {
-      const untrackedChanges: RepositoryFileChange[] =
-        await this.parseUntrackedFilesInWorkspace();
-      results.push(...untrackedChanges);
-    }
-
-    return results;
+            })
+        )
+    );
+    return changesInRepositories.reduce((acc, x) => ({ ...acc, ...x }), {});
   }
 
   public onDidChangeState(cb: (e: APIState) => any) {
@@ -150,17 +167,15 @@ export default class GitApi {
     return this._vscGitApi.state;
   }
 
-  public get getWorkspaceMainRepository(): Repository | null {
-    // findRepositories(
-    //   vscode.workspace.workspaceFolders![0].uri,
-    //   this._vscGitApi,
-    //   ["node_modules"]
-    // );
-    const mainRepo = this._vscGitApi.getRepository(
-      // @TODO: [roadmap] consider multiple workspaces
-      vscode.workspace.workspaceFolders![0].uri
-    );
-    return mainRepo;
+  public async getWorkspaceRepositories(): Promise<FilePathRepoHashMap> {
+    const rootUri = vscode.workspace.workspaceFolders![0].uri;
+    const rootRepo = this._vscGitApi.getRepository(rootUri);
+    if (rootRepo !== null) {
+      return {
+        [rootUri.path]: rootRepo,
+      };
+    }
+    return await findRepositories(rootUri, this._vscGitApi, ["node_modules"]);
   }
 
   /*************
@@ -169,34 +184,39 @@ export default class GitApi {
 
   /**
    * Get file diffs in workspace repositories.
-   *
    */
-  private async diffToObject(): Promise<RepositoryDiffObject | undefined> {
-    const repository = this.getWorkspaceMainRepository;
-    if (repository) {
-      const result = parseDiff(await repository.diff());
-      return {
-        diffs: result,
-        repository,
-      };
-    }
-
-    return undefined;
+  // working
+  private async diffsToObject(): Promise<Record<string, RepositoryDiffObject>> {
+    const repositories = await this.getWorkspaceRepositories();
+    const result = await Promise.all<Record<string, RepositoryDiffObject>>(
+      Object.keys(repositories).map(
+        (repoPath) =>
+          new Promise(async (resolve) => {
+            const repository = repositories[repoPath];
+            const result = parseDiff(await repository.diff());
+            resolve({
+              [repoPath]: {
+                diffs: result,
+                repository,
+              },
+            });
+          })
+      )
+    );
+    return result.reduce((acc, x) => ({ ...acc, ...x }), {});
   }
 
-  private async parseUntrackedFilesInWorkspace(): Promise<
-    RepositoryFileChange[]
-  > {
+  private async parseUntrackedFilesInWorkspace(
+    directoryPath: string
+  ): Promise<RepositoryFileChange[]> {
     try {
       const result: RepositoryFileChange[] = [];
 
-      // @TODO: [roadmap] consider multiple workspaces
-      let workspacePath: string =
-        vscode.workspace.workspaceFolders![0].uri.path;
-      workspacePath = workspacePath.replace(/^\//g, "");
+      const cleanedDirectoryPath = directoryPath.replace(/^\//g, "");
+
       // Exec command.
       const commandResult: string = await asyncExec(
-        `git -C "${workspacePath}" ls-files -o --exclude-standard`
+        `git -C "${cleanedDirectoryPath}" ls-files -o --exclude-standard`
       );
 
       // Get untracked files paths from command result string.
@@ -204,7 +224,7 @@ export default class GitApi {
         .trim()
         .split("\n")
         .map((filename) =>
-          path.join(workspacePath, filename).replace(/\\/g, "/")
+          path.join(cleanedDirectoryPath, filename).replace(/\\/g, "/")
         );
 
       // Prepare for getting file contents.
@@ -218,7 +238,7 @@ export default class GitApi {
       >[] = [];
       filePaths.forEach((path) => {
         const relativeFilePath = path
-          .replace(workspacePath, "")
+          .replace(cleanedDirectoryPath, "")
           .replace(/^\//g, "");
 
         // Prepare Promises that will retrieve  file contents.

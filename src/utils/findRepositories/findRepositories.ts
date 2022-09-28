@@ -1,12 +1,13 @@
 import * as vscode from "vscode";
-import { API as GitAPI, Repository } from "../../../declarations/git";
+import { API as GitAPI } from "../../../declarations/git";
+import { FilePathRepoHashMap } from "../../types";
 import { matchFiles } from "../matchFiles";
 
 export const findRepositories = async (
   root: vscode.Uri,
   gitApi: GitAPI,
   ignoredDirectories?: string[]
-): Promise<Record<string, Repository>> => {
+): Promise<FilePathRepoHashMap> => {
   vscode.workspace.fs.readDirectory(root);
   const gitRepositoryDirectories = await matchFiles(
     root,
@@ -14,13 +15,10 @@ export const findRepositories = async (
     ([filename]) =>
       ignoredDirectories === undefined || !ignoredDirectories.includes(filename)
   );
-  return gitRepositoryDirectories.reduce<Record<string, Repository>>(
-    (acc, x) => {
-      return {
-        ...acc,
-        [x.path]: gitApi.getRepository(x)!,
-      };
-    },
-    {}
-  );
+  return gitRepositoryDirectories.reduce<FilePathRepoHashMap>((acc, x) => {
+    return {
+      ...acc,
+      [x.path]: gitApi.getRepository(x)!,
+    };
+  }, {});
 };

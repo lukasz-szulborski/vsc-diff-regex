@@ -229,11 +229,26 @@ export class ActivityBarView implements vscode.Disposable {
 
   private async _getAndApplyChanges(): Promise<void> {
     const changes = await this._getFilesChanges();
-    this._paintDecorationsInTextEditors(changes[0]);
-    this._postChangesToWebview(changes[1]);
+    const [positions, repoChanges] = Object.entries(changes).reduce(
+      (acc, [repoPath, data]) => {
+        return [
+          {
+            ...acc[0],
+            ...data[0],
+          },
+          {
+            ...acc[1],
+            [repoPath]: data[1],
+          },
+        ];
+      },
+      [{}, {}]
+    );
+    this._paintDecorationsInTextEditors(positions);
+    this._postChangesToWebview(repoChanges);
     await this._saveInStorage(
       WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS,
-      JSON.stringify(changes[0])
+      JSON.stringify(positions)
     );
   }
 
@@ -260,11 +275,9 @@ export class ActivityBarView implements vscode.Disposable {
     }
   }
 
-  private _handleGitApiInitialized(): void {
-    // @TODO: [roadmap] consider multiple workspaces
-    const repository: Repository | null =
-      this._gitApi.getWorkspaceMainRepository;
-    if (repository) {
+  private async _handleGitApiInitialized(): Promise<void> {
+    const repositories = await this._gitApi.getWorkspaceRepositories();
+    if (repositories && Object.entries(repositories).length > 0) {
       this._updateLoadingState("gitRepositories", false);
     } else {
       this._renderState = RENDER_STATE.NO_REPO;
@@ -280,7 +293,9 @@ export class ActivityBarView implements vscode.Disposable {
     });
   }
 
-  private _postChangesToWebview(changes: RepositoryFileChange[]): void {
+  private _postChangesToWebview(
+    changes: Record<string, RepositoryFileChange[]>
+  ): void {
     this._view.webview.postMessage({
       command: "newResults",
       matches: changes,
@@ -468,12 +483,12 @@ export class ActivityBarView implements vscode.Disposable {
    *
    */
   private async _getFilesChanges(): Promise<
-    [FilesPositionsHashMap, RepositoryFileChange[]]
+    Record<string, [FilesPositionsHashMap, RepositoryFileChange[]]>
   > {
     const searchInputValue = this._getSearchInputFromState;
 
     if (searchInputValue === null || searchInputValue.length === 0) {
-      return [{}, []];
+      return {};
     }
 
     /* 
@@ -490,105 +505,130 @@ export class ActivityBarView implements vscode.Disposable {
     */
 
     // Run and parse `git diff`.
-    const diff = await this._gitApi.parseDiff();
+    const diffs = await this._gitApi.parseDiffs();
 
-    // Filter with saved regex term.
-    const filteredChanges: RepositoryFileChange[] = [];
-    // Containing filtered changes (File name -> change line -> change) Hash map. Index to process changes within a single line easier.
-    const filteredChangesHashMap: FilenameLineChangesHashMap = {};
     const searchedTermRegex = new RegExp(searchInputValue ?? "");
-    diff.forEach((changedFile) => {
-      let newIndex: undefined | number = undefined;
-      changedFile.changes.forEach((fileChange) => {
-        /*
-          @NOTE: in future make it a changeable option. This is possible that someone will want to use regexp in context of whole line.
-          Also @NOTE that letting all lines in may introduce some computation overhead, monitor this part of the code when some performance problems arise in the future.
-        */
-        if (
-          fileChange.type === "add" /*&&
-            fileChange.content.match(searchedTermRegex) !== null*/ ||
-          fileChange.type === "del"
-        ) {
-          // Create different object types for changed files. Later it will be easier to reason about this changed files.
-          if (newIndex === undefined) {
-            // First change in a file matched.
-            newIndex =
-              filteredChanges.push({
-                filePath: changedFile.filePath,
-                fileName: changedFile.fileName,
-                fullFilePath: changedFile.fullFilePath,
-                changes: [fileChange],
-              }) - 1;
-          } else {
-            // Rest of the changes matched in a file.
-            filteredChanges[newIndex].changes.push(fileChange);
-          }
 
-          // Index (aggregation) per changed file per line.
-          if (!filteredChangesHashMap[changedFile.fullFilePath])
-            filteredChangesHashMap[changedFile.fullFilePath] = {};
-          if (
-            !filteredChangesHashMap[changedFile.fullFilePath][fileChange.line]
-          )
-            filteredChangesHashMap[changedFile.fullFilePath][fileChange.line] =
-              [];
-          filteredChangesHashMap[changedFile.fullFilePath][
-            fileChange.line
-          ].push(fileChange);
-        }
-      });
-    });
+    const positionsAndChanges = await Promise.all<
+      Record<string, [FilesPositionsHashMap, RepositoryFileChange[]]>
+    >(
+      Object.keys(diffs).map(
+        (repoPath) =>
+          new Promise(async (resolve) => {
+            const diff = diffs[repoPath];
 
-    /*
-      -----                           -----
-      -- EXTRACTING POSITIONS SUBROUTINE --
-      -----                           -----
+            // Filter with saved regex term.
+            const filteredChanges: RepositoryFileChange[] = [];
+            // Contains filtered changes (File name -> change line -> change) hash map. Index to process changes within a single line easier.
+            const filteredChangesHashMap: FilenameLineChangesHashMap = {};
 
-      It will extract specific changed positions that match searched term and further filter changes by this term.
+            diff.forEach((changedFile) => {
+              let newIndex: undefined | number = undefined;
+              changedFile.changes.forEach((fileChange) => {
+                /*
+                  @NOTE: in future make it a changeable option. This is possible that someone will want to use regexp in context of whole line.
+                  Also @NOTE that letting all lines in may introduce some computation overhead, monitor this part of the code when some performance problems arise in the future.
+                */
+                if (fileChange.type === "add" || fileChange.type === "del") {
+                  // Create different object types for changed files. Later it will be easier to reason about this changed files.
+                  if (newIndex === undefined) {
+                    // First change in a file matched.
+                    newIndex =
+                      filteredChanges.push({
+                        filePath: changedFile.filePath,
+                        fileName: changedFile.fileName,
+                        fullFilePath: changedFile.fullFilePath,
+                        changes: [fileChange],
+                      }) - 1;
+                  } else {
+                    // Rest of the changes matched in a file.
+                    filteredChanges[newIndex].changes.push(fileChange);
+                  }
 
-      * First of all we need to make sure that lines that doesn't contain searched term strictly in *changes* (meaning changed indexes of a string) will be eventually filtered out (filter lines that contain searched term but not in changes). See `changedLinesThatDidntMatchTerm` dictionary.
-      * Find added positions in changed lines.
-    */
+                  // Index (aggregation) per changed file per line.
+                  if (!filteredChangesHashMap[changedFile.fullFilePath])
+                    filteredChangesHashMap[changedFile.fullFilePath] = {};
+                  if (
+                    !filteredChangesHashMap[changedFile.fullFilePath][
+                      fileChange.line
+                    ]
+                  )
+                    filteredChangesHashMap[changedFile.fullFilePath][
+                      fileChange.line
+                    ] = [];
+                  filteredChangesHashMap[changedFile.fullFilePath][
+                    fileChange.line
+                  ].push(fileChange);
+                }
+              });
+            });
 
-    // Collect positions where searched term occur.
-    const changedLinesThatDidntMatchTerm: Record<string, number[]> = {};
-    const editorPositionsFromFilenameLineChangeHashMap =
-      this._getEditorPositionsFromFilenameLineChangeHashMap({
-        changesHashMap: filteredChangesHashMap,
-        searchedTerm: searchedTermRegex,
-        // Find changes that don't match searched term.
-        onLineChangeEncountered: ({ didMatch, fileName, line }) => {
-          if (didMatch) {
-            return;
-          }
-          if (!changedLinesThatDidntMatchTerm[fileName]) {
-            changedLinesThatDidntMatchTerm[fileName] = [];
-          }
-          changedLinesThatDidntMatchTerm[fileName].push(line);
-        },
-      });
+            /*
+              -----                           -----
+              -- EXTRACTING POSITIONS SUBROUTINE --
+              -----                           -----
+        
+              It will extract specific changed positions that match searched term and further filter changes by this term.
+        
+              * First of all we need to make sure that lines that doesn't contain searched term strictly in *changes* (meaning changed indexes of a string) will be eventually filtered out (filter lines that contain searched term but not in changes). See `changedLinesThatDidntMatchTerm` dictionary.
+              * Find added positions in changed lines.
+            */
 
-    // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
-    const fullyFilteredChanges: RepositoryFileChange[] = filteredChanges.map(
-      (fileChange) => {
-        const linesToRemove =
-          changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
-        if (
-          !linesToRemove ||
-          !Array.isArray(linesToRemove) ||
-          linesToRemove.length === 0
-        ) {
-          return fileChange;
-        }
-        const updatedFileChange: RepositoryFileChange = { ...fileChange };
-        updatedFileChange.changes = fileChange.changes.filter(
-          (change) => !linesToRemove.includes(change.line)
-        );
-        return updatedFileChange;
-      }
+            // Collect positions where searched term occur.
+            const changedLinesThatDidntMatchTerm: Record<string, number[]> = {};
+            const editorPositionsFromFilenameLineChangeHashMap =
+              this._getEditorPositionsFromFilenameLineChangeHashMap({
+                changesHashMap: filteredChangesHashMap,
+                searchedTerm: searchedTermRegex,
+                // Find changes that don't match searched term.
+                onLineChangeEncountered: ({ didMatch, fileName, line }) => {
+                  if (didMatch) {
+                    return;
+                  }
+                  if (!changedLinesThatDidntMatchTerm[fileName]) {
+                    changedLinesThatDidntMatchTerm[fileName] = [];
+                  }
+                  changedLinesThatDidntMatchTerm[fileName].push(line);
+                },
+              });
+
+            // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
+            const fullyFilteredChanges: RepositoryFileChange[] =
+              filteredChanges.map((fileChange) => {
+                const linesToRemove =
+                  changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
+                if (
+                  !linesToRemove ||
+                  !Array.isArray(linesToRemove) ||
+                  linesToRemove.length === 0
+                ) {
+                  return fileChange;
+                }
+                const updatedFileChange: RepositoryFileChange = {
+                  ...fileChange,
+                };
+                updatedFileChange.changes = fileChange.changes.filter(
+                  (change) => !linesToRemove.includes(change.line)
+                );
+                return updatedFileChange;
+              });
+            resolve({
+              [repoPath]: [
+                editorPositionsFromFilenameLineChangeHashMap,
+                fullyFilteredChanges,
+              ],
+            });
+          })
+      )
     );
 
-    return [editorPositionsFromFilenameLineChangeHashMap, fullyFilteredChanges];
+    return positionsAndChanges.reduce(
+      (acc, x) => ({
+        ...acc,
+        ...x,
+      }),
+      {}
+    );
   }
 
   /**
@@ -619,7 +659,7 @@ export class ActivityBarView implements vscode.Disposable {
                     <meta name="viewport" content="width=device-width,initial-scale=1.0">
                 </head>
                 <body>
-                    It looks like you don't have any repositories inside opened workspaces.
+                    It looks like you don't have any repositories inside opened directory.
                 </body>
             </html>
         `;
