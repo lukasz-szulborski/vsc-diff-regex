@@ -593,8 +593,8 @@ export class ActivityBarView implements vscode.Disposable {
               });
 
             // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
-            const fullyFilteredChanges: RepositoryFileChange[] =
-              filteredChanges.map((fileChange) => {
+            const fullyFilteredChanges: RepositoryFileChange[] = filteredChanges
+              .map((fileChange) => {
                 const linesToRemove =
                   changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
                 if (
@@ -611,7 +611,8 @@ export class ActivityBarView implements vscode.Disposable {
                   (change) => !linesToRemove.includes(change.line)
                 );
                 return updatedFileChange;
-              });
+              })
+              .filter((fileChange) => fileChange.changes.length > 0);
             resolve({
               [repoPath]: [
                 editorPositionsFromFilenameLineChangeHashMap,

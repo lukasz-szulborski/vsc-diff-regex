@@ -1323,7 +1323,8 @@ class ActivityBarView {
                 },
             });
             // Second (and final) step of filtering where we filter lines that don't contain searched term in changes (but it may contain the term in the rest of the line contents).
-            const fullyFilteredChanges = filteredChanges.map((fileChange) => {
+            const fullyFilteredChanges = filteredChanges
+                .map((fileChange) => {
                 const linesToRemove = changedLinesThatDidntMatchTerm[fileChange.fullFilePath];
                 if (!linesToRemove ||
                     !Array.isArray(linesToRemove) ||
@@ -1335,7 +1336,8 @@ class ActivityBarView {
                 };
                 updatedFileChange.changes = fileChange.changes.filter((change) => !linesToRemove.includes(change.line));
                 return updatedFileChange;
-            });
+            })
+                .filter((fileChange) => fileChange.changes.length > 0);
             resolve({
                 [repoPath]: [
                     editorPositionsFromFilenameLineChangeHashMap,
