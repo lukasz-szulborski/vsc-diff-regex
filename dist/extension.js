@@ -271,6 +271,7 @@ __exportStar(__webpack_require__(11), exports);
 __exportStar(__webpack_require__(13), exports);
 __exportStar(__webpack_require__(15), exports);
 __exportStar(__webpack_require__(35), exports);
+__exportStar(__webpack_require__(38), exports);
 
 
 /***/ }),
@@ -1273,7 +1274,10 @@ class ActivityBarView {
         */
         // Run and parse `git diff`.
         const diffs = await this._gitApi.parseDiffs();
-        const searchedTermRegex = new RegExp(searchInputValue ?? "");
+        const regexpParseResult = (0, utils_1.stringToRegExp)(searchInputValue);
+        if (regexpParseResult.isInputBadExpression === true) {
+            return {};
+        }
         const positionsAndChanges = await Promise.all(Object.keys(diffs).map((repoPath) => new Promise(async (resolve) => {
             const diff = diffs[repoPath];
             // Filter with saved regex term.
@@ -1326,7 +1330,7 @@ class ActivityBarView {
             const changedLinesThatDidntMatchTerm = {};
             const editorPositionsFromFilenameLineChangeHashMap = this._getEditorPositionsFromFilenameLineChangeHashMap({
                 changesHashMap: filteredChangesHashMap,
-                searchedTerm: searchedTermRegex,
+                searchedTerm: regexpParseResult.regexp,
                 // Find changes that don't match searched term.
                 onLineChangeEncountered: ({ didMatch, fileName, line }) => {
                     if (didMatch) {
@@ -1418,7 +1422,8 @@ class ActivityBarView {
                     <vscode-text-field id="searchInput" placeholder='eg. ".*console.log.*"'>
                       Search
                     </vscode-text-field>
-                    <div class="empty-search-input" id="emptySearchInput">Feel free to use above search input.</div>
+                    <div class="search-input-msg" id="emptySearchInput">Feel free to use above search input.</div>
+                    <div class="search-input-msg" id="badSearchInput">Invalid regular expression. Please check your search term syntax.</div>
                     <div class="results-container" id="resultsContainer"></div>
                 </body>
             </html>
@@ -1757,6 +1762,48 @@ exports.matchFiles = matchFiles;
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 38 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(39), exports);
+
+
+/***/ }),
+/* 39 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.stringToRegExp = void 0;
+const stringToRegExp = (s) => {
+    try {
+        return {
+            isInputBadExpression: false,
+            regexp: new RegExp(s ?? ""),
+        };
+    }
+    catch (error) {
+        return {
+            isInputBadExpression: true,
+        };
+    }
+};
+exports.stringToRegExp = stringToRegExp;
 
 
 /***/ })

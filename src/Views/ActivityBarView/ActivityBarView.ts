@@ -13,7 +13,7 @@ import {
   TextEditorInlinePosition,
   WorkspaceStateKeys,
 } from "../../types";
-import { myersDiff } from "../../utils";
+import { myersDiff, stringToRegExp } from "../../utils";
 
 enum RENDER_STATE {
   VIEW_LOADING, // Waiting for modules that View depends on.
@@ -526,7 +526,11 @@ export class ActivityBarView implements vscode.Disposable {
     // Run and parse `git diff`.
     const diffs = await this._gitApi.parseDiffs();
 
-    const searchedTermRegex = new RegExp(searchInputValue ?? "");
+    const regexpParseResult = stringToRegExp(searchInputValue);
+
+    if (regexpParseResult.isInputBadExpression === true) {
+      return {};
+    }
 
     const positionsAndChanges = await Promise.all<
       Record<string, [FilesPositionsHashMap, RepositoryFileChange[]]>
@@ -598,7 +602,7 @@ export class ActivityBarView implements vscode.Disposable {
             const editorPositionsFromFilenameLineChangeHashMap =
               this._getEditorPositionsFromFilenameLineChangeHashMap({
                 changesHashMap: filteredChangesHashMap,
-                searchedTerm: searchedTermRegex,
+                searchedTerm: regexpParseResult.regexp,
                 // Find changes that don't match searched term.
                 onLineChangeEncountered: ({ didMatch, fileName, line }) => {
                   if (didMatch) {
@@ -707,7 +711,8 @@ export class ActivityBarView implements vscode.Disposable {
                     <vscode-text-field id="searchInput" placeholder='eg. ".*console.log.*"'>
                       Search
                     </vscode-text-field>
-                    <div class="empty-search-input" id="emptySearchInput">Feel free to use above search input.</div>
+                    <div class="search-input-msg" id="emptySearchInput">Feel free to use above search input.</div>
+                    <div class="search-input-msg" id="badSearchInput">Invalid regular expression. Please check your search term syntax.</div>
                     <div class="results-container" id="resultsContainer"></div>
                 </body>
             </html>

@@ -3,7 +3,7 @@ body {
   flex-direction: column;
 }
 
-.empty-search-input {
+.search-input-msg {
   display: none;
   margin-top: 10px;
 }

@@ -41,6 +41,7 @@ function searchInputOnChangeHandler(event) {
   const value = event.target.value;
 
   toggleEmptyInputInfo(value);
+  toggleInvalidRegexpWarning(value);
   // Clear container where match results live.
   if (value.trim().length === 0) clearResultsContainer();
 
@@ -50,12 +51,30 @@ function searchInputOnChangeHandler(event) {
   });
 }
 
-function toggleEmptyInputInfo(value) {
-  if (value.trim().length === 0) {
-    document.querySelector("#emptySearchInput").style.display = "flex";
+function showDOMElementOnPredicate(p, elementSelector) {
+  if (p() === true) {
+    document.querySelector(elementSelector).style.display = "flex";
   } else {
-    document.querySelector("#emptySearchInput").style.display = "none";
+    document.querySelector(elementSelector).style.display = "none";
   }
+}
+
+function toggleEmptyInputInfo(value) {
+  showDOMElementOnPredicate(
+    () => typeof value !== "string" || value.trim().length === 0,
+    "#emptySearchInput"
+  );
+}
+
+function toggleInvalidRegexpWarning(value) {
+  showDOMElementOnPredicate(() => {
+    try {
+      new RegExp(value ?? "");
+      return false;
+    } catch (error) {
+      return true;
+    }
+  }, "#badSearchInput");
 }
 
 /**
