@@ -911,6 +911,16 @@ class ActivityBarView {
         this._loadingState = {
             gitRepositories: true,
         };
+        this._abortQueueOfGetAndApplyChanges = [];
+        this._updateAbortQueueOfGetAndApplyChanges = () => {
+            // Stop and remove all ongoing signals
+            this._abortQueueOfGetAndApplyChanges.forEach((a) => a.abort());
+            this._abortQueueOfGetAndApplyChanges = []; // I have no idea how to do this without mutating global state.
+            // Create new signal.
+            const ac = new AbortController();
+            this._abortQueueOfGetAndApplyChanges.push(ac);
+            return ac.signal;
+        };
         this._extensionContext = extensionContext;
         this._view = webviewView;
         this._WebviewUriProvider = new Helpers_1.WebviewUriProvider(this._view.webview, this._extensionContext.extensionUri);
@@ -921,7 +931,7 @@ class ActivityBarView {
         vscode.workspace.onDidSaveTextDocument(async (ctx) => {
             // Apply changes when user saves a project file only.
             if (ctx.uri.scheme === "file") {
-                await this._getAndApplyChanges();
+                await this._getAndApplyChanges(this._updateAbortQueueOfGetAndApplyChanges());
             }
         }, undefined, this._disposables);
         vscode.workspace.onDidChangeTextDocument(async () => {
@@ -1041,10 +1051,14 @@ class ActivityBarView {
             await workspaceState.update(types_1.WorkspaceStateKeys.ABV_SEARCH_INPUT, value);
         }
         // Always when input was changed apply new changes.
-        await this._getAndApplyChanges();
+        await this._getAndApplyChanges(this._updateAbortQueueOfGetAndApplyChanges());
     }
-    async _getAndApplyChanges() {
+    async _getAndApplyChanges(sig) {
+        if (sig.aborted)
+            return;
         const changes = await this._getFilesChanges();
+        if (sig.aborted)
+            return;
         const [positions, repoChanges] = Object.entries(changes).reduce((acc, [repoPath, data]) => {
             return [
                 {
@@ -1057,6 +1071,8 @@ class ActivityBarView {
                 },
             ];
         }, [{}, {}]);
+        if (sig.aborted)
+            return;
         this._paintDecorationsInTextEditors(positions);
         this._postChangesToWebview(repoChanges);
         await this._saveInStorage(types_1.WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS, JSON.stringify(positions));

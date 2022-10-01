@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { Repository } from "../../../declarations/git";
 import GitApi from "../../gitExtensionApi";
 import { ExtensionConfiguration, WebviewUriProvider } from "../../Helpers";
 import {
@@ -36,6 +35,7 @@ export class ActivityBarView implements vscode.Disposable {
   private _loadingState: ActivityBarViewLoadingState = {
     gitRepositories: true,
   };
+  private _abortQueueOfGetAndApplyChanges: AbortController[] = [];
 
   constructor(
     extensionContext: vscode.ExtensionContext,
@@ -59,7 +59,9 @@ export class ActivityBarView implements vscode.Disposable {
       async (ctx) => {
         // Apply changes when user saves a project file only.
         if (ctx.uri.scheme === "file") {
-          await this._getAndApplyChanges();
+          await this._getAndApplyChanges(
+            this._updateAbortQueueOfGetAndApplyChanges()
+          );
         }
       },
       undefined,
@@ -212,6 +214,18 @@ export class ActivityBarView implements vscode.Disposable {
     return JSON.parse(positions) as FilesPositionsHashMap;
   }
 
+  private _updateAbortQueueOfGetAndApplyChanges = (): AbortSignal => {
+    // Stop and remove all ongoing signals
+    this._abortQueueOfGetAndApplyChanges.forEach((a) => a.abort());
+    this._abortQueueOfGetAndApplyChanges = []; // I have no idea how to do this without mutating global state.
+
+    // Create new signal.
+    const ac = new AbortController();
+
+    this._abortQueueOfGetAndApplyChanges.push(ac);
+    return ac.signal;
+  };
+
   private async _handleSearchInputChange(
     value: string,
     force: boolean = false
@@ -224,11 +238,15 @@ export class ActivityBarView implements vscode.Disposable {
     }
 
     // Always when input was changed apply new changes.
-    await this._getAndApplyChanges();
+    await this._getAndApplyChanges(
+      this._updateAbortQueueOfGetAndApplyChanges()
+    );
   }
 
-  private async _getAndApplyChanges(): Promise<void> {
+  private async _getAndApplyChanges(sig: AbortSignal): Promise<void> {
+    if (sig.aborted) return;
     const changes = await this._getFilesChanges();
+    if (sig.aborted) return;
     const [positions, repoChanges] = Object.entries(changes).reduce(
       (acc, [repoPath, data]) => {
         return [
@@ -244,6 +262,7 @@ export class ActivityBarView implements vscode.Disposable {
       },
       [{}, {}]
     );
+    if (sig.aborted) return;
     this._paintDecorationsInTextEditors(positions);
     this._postChangesToWebview(repoChanges);
     await this._saveInStorage(
