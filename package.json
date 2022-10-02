@@ -1,7 +1,7 @@
 {
   "name": "vsc-diff-regex",
   "displayName": "vsc-diff-regex",
-  "description": "Find matching RegEx in git diff",
+  "description": "Find matching RegExp patterns in uncommited changes.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.64.0"
