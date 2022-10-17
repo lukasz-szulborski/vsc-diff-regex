@@ -4,19 +4,6 @@ import GitApi from "./gitExtensionApi";
 import { asyncExec } from "./utils";
 import { ActivityBarViewProvider } from "./Views";
 
-/**
- ******* NOTES *******
- *
- *
- * 9. Don't care bout rename alone (but do care about rename & contents change) (`git diff --no-renames` ???)
- *
- * --- Road map functionalities ---
- * 7. Find and replace occurrences in all files
- * 8. Handle multiple repositeries within opened Workspace
- * 9. Handle multiple Workspaces
- *
- */
-
 export async function activate(context: vscode.ExtensionContext) {
   console.log("*** vsc-diff-regex startup ***");
 
