@@ -245,6 +245,7 @@ export class ActivityBarView implements vscode.Disposable {
 
   private async _getAndApplyChanges(sig: AbortSignal): Promise<void> {
     if (sig.aborted) return;
+    // @TODO: Add signal abort to this function. This is pretty expensive function and its worth it to pass abort signal there (saving even 3 to 20 seconds)
     const changes = await this._getFilesChanges();
     if (sig.aborted) return;
     const [positions, repoChanges] = Object.entries(changes).reduce(
@@ -263,8 +264,8 @@ export class ActivityBarView implements vscode.Disposable {
       [{}, {}]
     );
     if (sig.aborted) return;
-    this._paintDecorationsInTextEditors(positions);
     this._postChangesToWebview(repoChanges);
+    this._paintDecorationsInTextEditors(positions);
     await this._saveInStorage(
       WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS,
       JSON.stringify(positions)
@@ -339,6 +340,9 @@ export class ActivityBarView implements vscode.Disposable {
     for (const fileName in changesHashMap) {
       results[fileName] = {}; // Prepare hash map for given file.
       const changes = changesHashMap[fileName];
+
+      // @NOTE: This part is slow.
+      // It is worth to send `changes` object to a separate job and split the computation between multiple threads (using Node's Worked Threads)
       for (const changeLineNumber in changes) {
         /*
           This loop is only concerned with changes within a single line. Thus we can conclude whether we're dealing with insertion or modification.
