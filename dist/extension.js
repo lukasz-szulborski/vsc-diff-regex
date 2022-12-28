@@ -25,8 +25,9 @@ class GitApi {
     constructor() {
         try {
             const gitExtension = vscode.extensions.getExtension("vscode.git");
-            if (gitExtension == undefined)
+            if (gitExtension == undefined) {
                 throw new Error();
+            }
             this._vscExtension = gitExtension;
         }
         catch (error) {
@@ -41,8 +42,9 @@ class GitApi {
     }
     async activateGit() {
         try {
-            if (!this._vscExtension.isActive)
+            if (!this._vscExtension.isActive) {
                 await this._vscExtension.activate();
+            }
             this._vscGitExtension = this._vscExtension.exports;
             this._vscGitApi = this._vscGitExtension.getAPI(1);
             return true;
@@ -270,8 +272,8 @@ __exportStar(__webpack_require__(9), exports);
 __exportStar(__webpack_require__(11), exports);
 __exportStar(__webpack_require__(13), exports);
 __exportStar(__webpack_require__(15), exports);
-__exportStar(__webpack_require__(35), exports);
-__exportStar(__webpack_require__(38), exports);
+__exportStar(__webpack_require__(17), exports);
+__exportStar(__webpack_require__(19), exports);
 
 
 /***/ }),
@@ -306,9 +308,10 @@ const cp = __webpack_require__(8);
  */
 const asyncExec = (command) => {
     return new Promise((resolve, reject) => {
-        cp.exec(command, (error, stdout, x) => {
-            if (error)
+        cp.exec(command.trim(), (error, stdout) => {
+            if (error) {
                 reject(error);
+            }
             resolve(stdout);
         });
     });
@@ -800,7 +803,7 @@ __exportStar(__webpack_require__(16), exports);
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.findRepositories = void 0;
 const vscode = __webpack_require__(1);
-const matchFiles_1 = __webpack_require__(35);
+const matchFiles_1 = __webpack_require__(17);
 const findRepositories = async (root, gitApi, ignoredDirectories) => {
     vscode.workspace.fs.readDirectory(root);
     const gitRepositoryDirectories = await (0, matchFiles_1.matchFiles)(root, ([_, filePath]) => gitApi.getRepository(filePath) !== null, ([filename]) => ignoredDirectories === undefined || !ignoredDirectories.includes(filename));
@@ -835,6 +838,56 @@ __exportStar(__webpack_require__(18), exports);
 
 /***/ }),
 /* 18 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.matchFiles = void 0;
+const vscode = __webpack_require__(1);
+/**
+ * Starting from root Uri (which should be a directory) and traversing down the
+ * directory tree return such Uris sequence that every file identified by this
+ * sequence's uri passes given predicate and qualification function.
+ *
+ * Furthermore the function stops directory traversal on a given node when that node
+ * passes a predicate.
+ */
+const matchFiles = async (root, predicate, qualify) => {
+    const go = async (root) => {
+        const files = await vscode.workspace.fs.readDirectory(root);
+        const results = await Promise.all(files.map(async ([filename, fileType]) => new Promise((resolve) => {
+            const fileUri = vscode.Uri.from({
+                scheme: "file",
+                path: `${root.path}/${filename}`,
+            });
+            const fileWithFullPath = [
+                filename,
+                fileUri,
+                fileType,
+            ];
+            if (qualify === undefined || qualify(fileWithFullPath)) {
+                if (predicate(fileWithFullPath)) {
+                    resolve([fileUri]);
+                    return;
+                }
+                // If it is not a directory then there is no way to go deeper.
+                if (fileType !== vscode.FileType.Directory) {
+                    resolve([]);
+                    return;
+                }
+                go(fileUri).then(resolve);
+            }
+            resolve([]);
+        })));
+        return results.flat();
+    };
+    return await go(root);
+};
+exports.matchFiles = matchFiles;
+
+
+/***/ }),
+/* 19 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -849,18 +902,79 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(19), exports);
 __exportStar(__webpack_require__(20), exports);
 
 
 /***/ }),
-/* 19 */
+/* 20 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.stringToRegExp = void 0;
+const stringToRegExp = (s) => {
+    try {
+        return {
+            isInputBadExpression: false,
+            regexp: new RegExp(s ?? ""),
+        };
+    }
+    catch (error) {
+        return {
+            isInputBadExpression: true,
+        };
+    }
+};
+exports.stringToRegExp = stringToRegExp;
+
+
+/***/ }),
+/* 21 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(22), exports);
+
+
+/***/ }),
+/* 22 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(23), exports);
+__exportStar(__webpack_require__(24), exports);
+
+
+/***/ }),
+/* 23 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarViewProvider = void 0;
-const _1 = __webpack_require__(18);
+const _1 = __webpack_require__(22);
 /**
  * Class responsible for resolving vdr-activity-bar-view WebviewView.
  */
@@ -883,7 +997,7 @@ ActivityBarViewProvider._viewId = "vdr-activity-bar-view";
 
 
 /***/ }),
-/* 20 */
+/* 24 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -891,8 +1005,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ActivityBarView = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const Helpers_1 = __webpack_require__(21);
-const types_1 = __webpack_require__(24);
+const Helpers_1 = __webpack_require__(25);
+const types_1 = __webpack_require__(28);
 const utils_1 = __webpack_require__(5);
 var RENDER_STATE;
 (function (RENDER_STATE) {
@@ -965,8 +1079,9 @@ class ActivityBarView {
     dispose() {
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
-            if (disposable)
+            if (disposable) {
                 disposable.dispose();
+            }
         }
     }
     /*************
@@ -1055,11 +1170,16 @@ class ActivityBarView {
         await this._getAndApplyChanges(this._updateAbortQueueOfGetAndApplyChanges());
     }
     async _getAndApplyChanges(sig) {
-        if (sig.aborted)
+        console.log(1);
+        if (sig.aborted) {
             return;
+        }
+        // @TODO: Add signal abort to this function. This is pretty expensive function and its worth it to pass abort signal there (saving even 3 to 20 seconds)
         const changes = await this._getFilesChanges();
-        if (sig.aborted)
+        console.log(2);
+        if (sig.aborted) {
             return;
+        }
         const [positions, repoChanges] = Object.entries(changes).reduce((acc, [repoPath, data]) => {
             return [
                 {
@@ -1072,10 +1192,13 @@ class ActivityBarView {
                 },
             ];
         }, [{}, {}]);
-        if (sig.aborted)
+        console.log(3);
+        if (sig.aborted) {
             return;
-        this._paintDecorationsInTextEditors(positions);
+        }
         this._postChangesToWebview(repoChanges);
+        console.log(4);
+        this._paintDecorationsInTextEditors(positions);
         await this._saveInStorage(types_1.WorkspaceStateKeys.ABV_CHANGES_TERM_POSITIONS, JSON.stringify(positions));
     }
     /**
@@ -1123,10 +1246,13 @@ class ActivityBarView {
         await workspaceState.update(key, value);
     }
     _getEditorPositionsFromFilenameLineChangeHashMap({ changesHashMap, searchedTerm, onLineChangeEncountered, }) {
+        console.log('hi');
         const results = {};
         for (const fileName in changesHashMap) {
             results[fileName] = {}; // Prepare hash map for given file.
             const changes = changesHashMap[fileName];
+            // @NOTE: This part is slow.
+            // It is worth to send `changes` object to a separate job and split the computation between multiple threads (using Node's Worked Threads)
             for (const changeLineNumber in changes) {
                 /*
                   This loop is only concerned with changes within a single line. Thus we can conclude whether we're dealing with insertion or modification.
@@ -1157,7 +1283,19 @@ class ActivityBarView {
                     // Don't paint changes. Change at line shouldn't be longer than 2.
                     continue;
                 }
+                console.log('x');
+                console.log({ originalContent,
+                    currentContent });
+                try {
+                    (0, utils_1.myersDiff)(originalContent, currentContent);
+                    console.log(1);
+                }
+                catch (error) {
+                    console.log(2);
+                    console.log(error);
+                }
                 const originalToCurrentEditScript = (0, utils_1.myersDiff)(originalContent, currentContent);
+                console.log('d', { originalToCurrentEditScript });
                 let termFoundInChanges = false;
                 originalToCurrentEditScript.operations.forEach(async (operation) => {
                     // Use only adds.
@@ -1189,6 +1327,7 @@ class ActivityBarView {
                         });
                     }
                 });
+                console.log('c');
                 if (onLineChangeEncountered) {
                     onLineChangeEncountered({
                         didMatch: termFoundInChanges,
@@ -1198,6 +1337,7 @@ class ActivityBarView {
                 }
             }
         }
+        console.log('bye');
         return results;
     }
     /**
@@ -1308,10 +1448,12 @@ class ActivityBarView {
                             filteredChanges[newIndex].changes.push(fileChange);
                         }
                         // Index (aggregation) per changed file per line.
-                        if (!filteredChangesHashMap[changedFile.fullFilePath])
+                        if (!filteredChangesHashMap[changedFile.fullFilePath]) {
                             filteredChangesHashMap[changedFile.fullFilePath] = {};
-                        if (!filteredChangesHashMap[changedFile.fullFilePath][fileChange.line])
+                        }
+                        if (!filteredChangesHashMap[changedFile.fullFilePath][fileChange.line]) {
                             filteredChangesHashMap[changedFile.fullFilePath][fileChange.line] = [];
+                        }
                         filteredChangesHashMap[changedFile.fullFilePath][fileChange.line].push(fileChange);
                     }
                 });
@@ -1453,7 +1595,7 @@ exports.ActivityBarView = ActivityBarView;
 
 
 /***/ }),
-/* 21 */
+/* 25 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1468,12 +1610,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(22), exports);
-__exportStar(__webpack_require__(23), exports);
+__exportStar(__webpack_require__(26), exports);
+__exportStar(__webpack_require__(27), exports);
 
 
 /***/ }),
-/* 22 */
+/* 26 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1541,7 +1683,7 @@ exports.WebviewUriProvider = WebviewUriProvider;
 
 
 /***/ }),
-/* 23 */
+/* 27 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -1555,63 +1697,6 @@ class ExtensionConfiguration {
     }
 }
 exports.ExtensionConfiguration = ExtensionConfiguration;
-
-
-/***/ }),
-/* 24 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(25), exports);
-__exportStar(__webpack_require__(26), exports);
-__exportStar(__webpack_require__(27), exports);
-__exportStar(__webpack_require__(28), exports);
-__exportStar(__webpack_require__(31), exports);
-__exportStar(__webpack_require__(32), exports);
-__exportStar(__webpack_require__(33), exports);
-__exportStar(__webpack_require__(34), exports);
-__exportStar(__webpack_require__(37), exports);
-
-
-/***/ }),
-/* 25 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.WorkspaceStateKeys = void 0;
-var WorkspaceStateKeys;
-(function (WorkspaceStateKeys) {
-    WorkspaceStateKeys["ABV_SEARCH_INPUT"] = "ABV_SEARCH_INPUT";
-    WorkspaceStateKeys["ABV_CHANGES_TERM_POSITIONS"] = "ABV_CHANGES_POSITIONS";
-})(WorkspaceStateKeys = exports.WorkspaceStateKeys || (exports.WorkspaceStateKeys = {}));
-
-
-/***/ }),
-/* 26 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 27 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 /***/ }),
@@ -1632,6 +1717,13 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __exportStar(__webpack_require__(29), exports);
 __exportStar(__webpack_require__(30), exports);
+__exportStar(__webpack_require__(31), exports);
+__exportStar(__webpack_require__(32), exports);
+__exportStar(__webpack_require__(35), exports);
+__exportStar(__webpack_require__(36), exports);
+__exportStar(__webpack_require__(37), exports);
+__exportStar(__webpack_require__(38), exports);
+__exportStar(__webpack_require__(39), exports);
 
 
 /***/ }),
@@ -1640,6 +1732,12 @@ __exportStar(__webpack_require__(30), exports);
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkspaceStateKeys = void 0;
+var WorkspaceStateKeys;
+(function (WorkspaceStateKeys) {
+    WorkspaceStateKeys["ABV_SEARCH_INPUT"] = "ABV_SEARCH_INPUT";
+    WorkspaceStateKeys["ABV_CHANGES_TERM_POSITIONS"] = "ABV_CHANGES_POSITIONS";
+})(WorkspaceStateKeys = exports.WorkspaceStateKeys || (exports.WorkspaceStateKeys = {}));
 
 
 /***/ }),
@@ -1660,10 +1758,22 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 /* 32 */
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(33), exports);
+__exportStar(__webpack_require__(34), exports);
 
 
 /***/ }),
@@ -1680,80 +1790,22 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ConfigurationKeys = void 0;
-var ConfigurationKeys;
-(function (ConfigurationKeys) {
-    ConfigurationKeys["MATCH_BACKGROUND_COLOR"] = "matchBackgroundColor";
-})(ConfigurationKeys = exports.ConfigurationKeys || (exports.ConfigurationKeys = {}));
 
 
 /***/ }),
 /* 35 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports) => {
 
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(36), exports);
 
 
 /***/ }),
 /* 36 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ ((__unused_webpack_module, exports) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.matchFiles = void 0;
-const vscode = __webpack_require__(1);
-/**
- * Starting from root Uri (which should be a directory) and traversing down the
- * directory tree return such Uris sequence that every file identified by this
- * sequence's uri passes given predicate and qualification function.
- *
- * Furthermore the function stops directory traversal on a given node when that node
- * passes a predicate.
- */
-const matchFiles = async (root, predicate, qualify) => {
-    const go = async (root) => {
-        const files = await vscode.workspace.fs.readDirectory(root);
-        const results = await Promise.all(files.map(async ([filename, fileType]) => new Promise((resolve) => {
-            const fileUri = vscode.Uri.from({
-                scheme: "file",
-                path: `${root.path}/${filename}`,
-            });
-            const fileWithFullPath = [
-                filename,
-                fileUri,
-                fileType,
-            ];
-            if (qualify === undefined || qualify(fileWithFullPath)) {
-                if (predicate(fileWithFullPath)) {
-                    resolve([fileUri]);
-                    return;
-                }
-                // If it is not a directory then there is no way to go deeper.
-                if (fileType !== vscode.FileType.Directory) {
-                    resolve([]);
-                    return;
-                }
-                go(fileUri).then(resolve);
-            }
-            resolve([]);
-        })));
-        return results.flat();
-    };
-    return await go(root);
-};
-exports.matchFiles = matchFiles;
 
 
 /***/ }),
@@ -1766,21 +1818,15 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 /* 38 */
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports) => {
 
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(39), exports);
+exports.ConfigurationKeys = void 0;
+var ConfigurationKeys;
+(function (ConfigurationKeys) {
+    ConfigurationKeys["MATCH_BACKGROUND_COLOR"] = "matchBackgroundColor";
+})(ConfigurationKeys = exports.ConfigurationKeys || (exports.ConfigurationKeys = {}));
 
 
 /***/ }),
@@ -1789,21 +1835,6 @@ __exportStar(__webpack_require__(39), exports);
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.stringToRegExp = void 0;
-const stringToRegExp = (s) => {
-    try {
-        return {
-            isInputBadExpression: false,
-            regexp: new RegExp(s ?? ""),
-        };
-    }
-    catch (error) {
-        return {
-            isInputBadExpression: true,
-        };
-    }
-};
-exports.stringToRegExp = stringToRegExp;
 
 
 /***/ })
@@ -1843,20 +1874,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
 const vscode = __webpack_require__(1);
 const gitExtensionApi_1 = __webpack_require__(2);
-const utils_1 = __webpack_require__(5);
-const Views_1 = __webpack_require__(17);
-/**
- ******* NOTES *******
- *
- *
- * 9. Don't care bout rename alone (but do care about rename & contents change) (`git diff --no-renames` ???)
- *
- * --- Road map functionalities ---
- * 7. Find and replace occurrences in all files
- * 8. Handle multiple repositeries within opened Workspace
- * 9. Handle multiple Workspaces
- *
- */
+const Views_1 = __webpack_require__(21);
 async function activate(context) {
     console.log("*** vsc-diff-regex startup ***");
     /***********************
@@ -1865,19 +1883,32 @@ async function activate(context) {
     const gitApi = gitExtensionApi_1.default.Instance;
     // Make sure git extension is active
     if (await gitApi.activateGit()) {
-        // Check git configuration (due to parse limitations of "parse-diff": "^0.9.0")
-        // @NOTE: remove in foreseeable future.
-        // https://github.com/sergeyt/parse-diff/pull/44
-        const isDiffMnemonicPrefixEnabled = await (0, utils_1.asyncExec)("git config diff.mnemonicprefix");
-        if (isDiffMnemonicPrefixEnabled.trim() === "true") {
-            vscode.window.showWarningMessage('Extension may not work correctly when diff.mnemonicPrefix equals true in your git configuration. Please run "git config --global diff.mnemonicPrefix false".');
+        try {
+            // Check git configuration (due to parse limitations of "parse-diff": "^0.9.0")
+            // @NOTE: remove in foreseeable future.
+            // https://github.com/sergeyt/parse-diff/pull/44
+            // const isDiffMnemonicPrefixEnabled = await asyncExec(
+            //   "git config --global --list" // @TODO:
+            // );
+            // // const isDiffMnemonicPrefixEnabled = await asyncExec(
+            // //   "git config --global diff.mnemonicprefix" // @TODO:
+            // // );
+            // // @TODO: handle empty
+            // if (["true", ""].includes(isDiffMnemonicPrefixEnabled.trim())) {
+            //   vscode.window.showWarningMessage(
+            //     'Extension may not work correctly when diff.mnemonicPrefix equals true in your git configuration. Please run "git config --global diff.mnemonicPrefix false".'
+            //   );
+            // }
+            context.subscriptions.push(vscode.window.registerWebviewViewProvider(Views_1.ActivityBarViewProvider.getViewId(), new Views_1.ActivityBarViewProvider(context)));
+            // Test command
+            let ping = vscode.commands.registerCommand("vdr.ping", () => {
+                vscode.window.showInformationMessage("Pong");
+            });
+            context.subscriptions.push(ping);
         }
-        context.subscriptions.push(vscode.window.registerWebviewViewProvider(Views_1.ActivityBarViewProvider.getViewId(), new Views_1.ActivityBarViewProvider(context)));
-        // Test command
-        let ping = vscode.commands.registerCommand("vdr.ping", () => {
-            vscode.window.showInformationMessage("Pong");
-        });
-        context.subscriptions.push(ping);
+        catch (error) {
+            console.log({ error });
+        }
     }
 }
 exports.activate = activate;
