@@ -509,9 +509,9 @@ export class ActivityBarView implements vscode.Disposable {
   }
 
   /**
-   * Function that should be run on file content changes or searched term changes.
    * Analyzes `git diff`, filters by current regex search.
-   *
+   * 
+   * Function that should be run on file content changes or searched term changes.
    */
   private async _getFilesChanges(): Promise<
     Record<string, [FilesPositionsHashMap, RepositoryFileChange[]]>
