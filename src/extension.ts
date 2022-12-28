@@ -23,13 +23,6 @@ export async function activate(context: vscode.ExtensionContext) {
           new ActivityBarViewProvider(context)
         )
       );
-
-      // Test command
-      let ping = vscode.commands.registerCommand("vdr.ping", () => {
-        vscode.window.showInformationMessage("Pong");
-      });
-
-      context.subscriptions.push(ping);
     } catch (error) {
       console.log({ error });
     }

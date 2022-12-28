@@ -14,16 +14,6 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "vdr.ping",
-        "title": "VDR Ping"
-      },
-      {
-        "command": "vdr.git-diff",
-        "title": "VDR Diff"
-      }
-    ],
     "viewsContainers": {
       "activitybar": [
         {
