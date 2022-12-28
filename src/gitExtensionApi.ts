@@ -31,7 +31,9 @@ export default class GitApi {
     try {
       const gitExtension =
         vscode.extensions.getExtension<GitExtension>("vscode.git");
-      if (gitExtension == undefined) throw new Error();
+      if (gitExtension == undefined) {
+        throw new Error();
+      }
       this._vscExtension = gitExtension;
     } catch (error) {
       console.log(error);
@@ -48,7 +50,9 @@ export default class GitApi {
 
   public async activateGit(): Promise<boolean> {
     try {
-      if (!this._vscExtension.isActive) await this._vscExtension.activate();
+      if (!this._vscExtension.isActive) {
+        await this._vscExtension.activate();
+      }
       this._vscGitExtension = this._vscExtension.exports;
       this._vscGitApi = this._vscGitExtension.getAPI(1);
       return true;

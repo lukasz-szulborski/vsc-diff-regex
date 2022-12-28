@@ -114,7 +114,9 @@ export class ActivityBarView implements vscode.Disposable {
   dispose() {
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
-      if (disposable) disposable.dispose();
+      if (disposable) {
+        disposable.dispose();
+      }
     }
   }
 
@@ -244,10 +246,14 @@ export class ActivityBarView implements vscode.Disposable {
   }
 
   private async _getAndApplyChanges(sig: AbortSignal): Promise<void> {
-    if (sig.aborted) return;
+    if (sig.aborted) {
+      return;
+    }
     // @TODO: Add signal abort to this function. This is pretty expensive function and its worth it to pass abort signal there (saving even 3 to 20 seconds)
     const changes = await this._getFilesChanges();
-    if (sig.aborted) return;
+    if (sig.aborted) {
+      return;
+    }
     const [positions, repoChanges] = Object.entries(changes).reduce(
       (acc, [repoPath, data]) => {
         return [
@@ -263,7 +269,9 @@ export class ActivityBarView implements vscode.Disposable {
       },
       [{}, {}]
     );
-    if (sig.aborted) return;
+    if (sig.aborted) {
+      return;
+    }
     this._postChangesToWebview(repoChanges);
     this._paintDecorationsInTextEditors(positions);
     await this._saveInStorage(
@@ -573,16 +581,18 @@ export class ActivityBarView implements vscode.Disposable {
                   }
 
                   // Index (aggregation) per changed file per line.
-                  if (!filteredChangesHashMap[changedFile.fullFilePath])
+                  if (!filteredChangesHashMap[changedFile.fullFilePath]) {
                     filteredChangesHashMap[changedFile.fullFilePath] = {};
+                  }
                   if (
                     !filteredChangesHashMap[changedFile.fullFilePath][
                       fileChange.line
                     ]
-                  )
+                  ) {
                     filteredChangesHashMap[changedFile.fullFilePath][
                       fileChange.line
                     ] = [];
+                  }
                   filteredChangesHashMap[changedFile.fullFilePath][
                     fileChange.line
                   ].push(fileChange);
