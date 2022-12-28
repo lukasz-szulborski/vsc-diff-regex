@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 
 import GitApi from "./gitExtensionApi";
-import { asyncExec } from "./utils";
 import { ActivityBarViewProvider } from "./Views";
 
 export async function activate(context: vscode.ExtensionContext) {
