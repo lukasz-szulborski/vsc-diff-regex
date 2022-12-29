@@ -8,6 +8,7 @@ Search for `vsc-diff-regex` in vscode extension market and hit `Install`. If the
 
 ## 📚 How to use
 
+Please follow the steps below:
 1. Activate extension by clicking on an extension icon (bar where you can also find Explorer and Source Control icons).
 2. Enter a regular expression.
 3. If there are any matches you should see results under the input field. You can click on any of the found lines to open the file. 
