@@ -31,7 +31,7 @@ Currently, the only configurable part of this extension is a highlight color of 
 
 ### 🪲 Known Issues
 
-* Improve Myers Diff Algorithm implementation (current implementation is neither stack-safe nor optimal causing extension to freeze when one of the modified files has more than 1-2k LOC).
+* Improve Myers Diff Algorithm implementation (current implementation is neither stack-safe nor optimal causing extension to freeze when one of the modified files is more than 1-2k LOC).
 * Add more abort signals to analysing function (to make search more reactive).
 
 Feel free to open an issue to report a bug or propose improvements.
