@@ -17,7 +17,7 @@ Please follow the steps below:
 2. Enter a regular expression.
 3. If there are any matches you should see results under the input field. You can click on any of the found lines to open the file. 
 
-\!\[feature X\]\(images/feature-x.png\) 
+![](https://raw.githubusercontent.com/Darklaki/vsc-diff-regex/main/media/Untitled.gif?token=GHSAT0AAAAAABYNAU7ENIE25MTEWKJVDPL6Y5PHLRQ)
 
 ##
 
